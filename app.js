@@ -341,6 +341,7 @@ function PokerPlanning({ queryString }) {
     setBusy(true);
     try {
       await backend.setVote(room.id, { id: userId, name: userName.trim() }, card);
+      await refreshRoom(room.id);
     } catch (error) {
       setNotice(error.message || "Unable to submit vote.");
     } finally {
@@ -353,6 +354,7 @@ function PokerPlanning({ queryString }) {
     setBusy(true);
     try {
       await backend.updateRoom(room.id, { revealed: true });
+      await refreshRoom(room.id);
     } catch (error) {
       setNotice(error.message || "Unable to reveal votes.");
     } finally {
@@ -365,6 +367,7 @@ function PokerPlanning({ queryString }) {
     setBusy(true);
     try {
       await backend.resetRoom(room.id);
+      await refreshRoom(room.id);
     } catch (error) {
       setNotice(error.message || "Unable to reset votes.");
     } finally {
@@ -377,6 +380,7 @@ function PokerPlanning({ queryString }) {
     setBusy(true);
     try {
       await backend.updateRoom(room.id, { story: storyDraft });
+      await refreshRoom(room.id);
     } catch (error) {
       setNotice(error.message || "Unable to update story.");
     } finally {
