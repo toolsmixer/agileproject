@@ -411,7 +411,7 @@ function PokerPlanning({ queryString }) {
         </p>
       </header>
 
-      <BackendSetup backendInstance={backend} />
+      {!backend.ready && <BackendSetup backendInstance={backend} />}
 
       {notice && <div className="notice">{notice}</div>}
 
