@@ -5,8 +5,8 @@
   };
 
   const DEFAULTS = {
-    url: "https://YOUR_PROJECT.supabase.co",
-    anonKey: "YOUR_ANON_KEY",
+    url: "https://tozrzmaolggcszxxnaju.supabase.co",
+    anonKey: "sb_publishable_iHsP3xVlBF7fO7iqOCGjag_jgbCvTDs",
   };
 
   function loadSettings() {
