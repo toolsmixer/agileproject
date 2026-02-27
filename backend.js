@@ -82,7 +82,7 @@
           .from("votes")
           .select("*")
           .eq("room_id", roomId)
-          .order("updated_at", { ascending: false });
+          .order("user_id", { ascending: true });
         if (error) {
           throw new Error(formatError(error, "Unable to load votes"));
         }

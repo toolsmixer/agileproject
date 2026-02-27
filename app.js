@@ -96,6 +96,7 @@ const translations = {
       waitingEmpty: "Waiting for teammates",
       roomLabel: "Room {id}",
       votesCount: "Votes {voted}/{total}",
+      average: "Average: {value}",
     },
     card: {
       title: "Pick a card",
@@ -236,6 +237,7 @@ const translations = {
       waitingEmpty: "En attente des participants",
       roomLabel: "Salle {id}",
       votesCount: "Votes {voted}/{total}",
+      average: "Moyenne: {value}",
     },
     card: {
       title: "Choisir une carte",
@@ -418,6 +420,13 @@ function computeSeatPositions(count, width, height, seatSize, padding = 24) {
   return positions;
 }
 
+function formatAverage(value) {
+  if (!Number.isFinite(value)) return "";
+  const rounded = Math.round(value * 100) / 100;
+  const str = rounded.toFixed(2);
+  return str.replace(/\.00$/, "").replace(/(\.\d)0$/, "$1");
+}
+
 function getTileText(language, id) {
   const pack = getLanguagePack(language);
   const fallback = translations.en.tiles[id] || { title: "", description: "", cta: "" };
@@ -442,9 +451,10 @@ function LanguageMenu({ language, setLanguage, t }) {
           type="button"
           className={`language-button${language === lang.code ? " active" : ""}`}
           onClick={() => setLanguage(lang.code)}
+          aria-label={t(`languageNames.${lang.code}`)}
+          title={t(`languageNames.${lang.code}`)}
         >
           <span className={`flag ${lang.flagClass}`} aria-hidden="true"></span>
-          {t(`languageNames.${lang.code}`)}
         </button>
       ))}
     </div>
@@ -1026,6 +1036,13 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
   const revealed = room ? room.revealed : false;
   const votedCount = votes.filter((vote) => vote.vote_value).length;
   const totalCount = votes.length;
+  const numericVotes = votes
+    .map((vote) => Number(vote.vote_value))
+    .filter((value) => Number.isFinite(value));
+  const averageValue =
+    revealed && numericVotes.length
+      ? formatAverage(numericVotes.reduce((sum, value) => sum + value, 0) / numericVotes.length)
+      : "";
   const deck = room && Array.isArray(room.deck) ? room.deck : getDeck(language);
 
   const shareBase =
@@ -1295,10 +1312,6 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
                   </button>
                 ))}
               </div>
-              <p>
-                <strong>{t("labels.yourPick")}:</strong>{" "}
-                {selected ? getCardLabel(selected, language) : t("card.none")}
-              </p>
             </div>
             <div
               className={`table-stage${denseLayout ? " dense" : ""}`}
@@ -1307,6 +1320,7 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
               <div className="table-top" ref={tableTopRef}>
                 <div className="table-label">{t("table.roomLabel", { id: room.id })}</div>
                 <div className="table-sub">{t("table.votesCount", { voted: votedCount, total: totalCount })}</div>
+                {averageValue && <div className="table-average">{t("table.average", { value: averageValue })}</div>}
               </div>
               {votes.length === 0 && <div className="table-empty">{t("table.waitingEmpty")}</div>}
               {votes.map((vote, index) => {

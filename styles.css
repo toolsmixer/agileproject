@@ -85,12 +85,12 @@ body {
   background: rgba(255, 255, 255, 0.9);
   color: var(--ink);
   font-weight: 600;
-  padding: 6px 10px;
+  padding: 6px;
   border-radius: 999px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   font-size: 0.85rem;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -106,15 +106,24 @@ body {
 }
 
 .flag {
-  width: 18px;
-  height: 12px;
+  width: 22px;
+  height: 14px;
   border-radius: 2px;
   border: 1px solid rgba(26, 28, 30, 0.2);
   box-shadow: 0 2px 6px rgba(26, 28, 30, 0.1);
 }
 
 .flag-en {
-  background: linear-gradient(180deg, #b22234 0%, #b22234 33%, #ffffff 33%, #ffffff 66%, #3c3b6e 66%, #3c3b6e 100%);
+  background:
+    linear-gradient(90deg, #3c3b6e 0%, #3c3b6e 45%, rgba(255, 255, 255, 0) 45%) 0 0 / 55% 55%
+      no-repeat,
+    repeating-linear-gradient(
+      180deg,
+      #b22234 0%,
+      #b22234 9%,
+      #ffffff 9%,
+      #ffffff 18%
+    );
 }
 
 .flag-fr {
@@ -731,6 +740,12 @@ body {
 .table-sub {
   font-weight: 600;
   color: var(--ink-muted);
+}
+
+.table-average {
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 0.95rem;
 }
 
 .table-empty {
