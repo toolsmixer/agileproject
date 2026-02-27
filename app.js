@@ -693,6 +693,7 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
   const [room, setRoom] = useState(null);
   const [votes, setVotes] = useState([]);
   const [notice, setNotice] = useState("");
+  const [sessionNotice, setSessionNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [sessionOpen, setSessionOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -704,6 +705,7 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
   const [includeBreak, setIncludeBreak] = useState(true);
   const tableTopRef = useRef(null);
   const shareLinkRef = useRef(null);
+  const sessionNoticeTimeoutRef = useRef(null);
   const [tableSize, setTableSize] = useState({ width: 0, height: 0 });
   const unsubscribeRef = useRef(null);
 
@@ -730,12 +732,22 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
 
   useEffect(() => {
     return () => {
+      if (sessionNoticeTimeoutRef.current) {
+        clearTimeout(sessionNoticeTimeoutRef.current);
+        sessionNoticeTimeoutRef.current = null;
+      }
       if (unsubscribeRef.current) {
         unsubscribeRef.current();
         unsubscribeRef.current = null;
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!sessionOpen) {
+      setSessionNotice("");
+    }
+  }, [sessionOpen]);
 
   useEffect(() => {
     if (!room) return;
@@ -976,9 +988,18 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
     setDeckDraft(serializeDeck(deckValues));
   };
 
+  const pushSessionNotice = (message) => {
+    if (sessionNoticeTimeoutRef.current) {
+      clearTimeout(sessionNoticeTimeoutRef.current);
+    }
+    setSessionNotice(message);
+    sessionNoticeTimeoutRef.current = setTimeout(() => {
+      setSessionNotice("");
+    }, 2400);
+  };
+
   const handleCopyLink = async () => {
     if (!shareLink) return;
-    setNotice("");
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(shareLink);
@@ -994,9 +1015,9 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
       } else {
         throw new Error("copy");
       }
-      setNotice(t("notices.linkCopied"));
+      pushSessionNotice(t("notices.linkCopied"));
     } catch (error) {
-      setNotice(t("notices.copyFailed"));
+      pushSessionNotice(t("notices.copyFailed"));
     }
   };
 
@@ -1131,6 +1152,7 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
                 </div>
                 <input id="share-link" className="input" value={shareLink} readOnly ref={shareLinkRef} />
                 <p className="muted">{t("session.shareHint")}</p>
+                {sessionNotice && <div className="notice session-notice">{sessionNotice}</div>}
               </div>
               <div className="qr-panel">
                 <div className="qr-label">{t("labels.qrCode")}</div>
