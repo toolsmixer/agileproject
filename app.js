@@ -80,6 +80,7 @@ const translations = {
       revealVotes: "Reveal votes",
       resetVotes: "Reset votes",
       leaveRoom: "Leave room",
+      copyLink: "Copy link",
       saveReload: "Save and reload",
     },
     status: {
@@ -140,6 +141,8 @@ const translations = {
       invalidRange: "Enter a valid min, max, and step.",
       emptyDeck: "Deck cannot be empty.",
       updateDeckFailed: "Unable to update deck.",
+      linkCopied: "Link copied.",
+      copyFailed: "Unable to copy link.",
     },
     notFound: {
       title: "Page not found",
@@ -217,6 +220,7 @@ const translations = {
       revealVotes: "Reveler les votes",
       resetVotes: "Reinitialiser les votes",
       leaveRoom: "Quitter la session",
+      copyLink: "Copier le lien",
       saveReload: "Enregistrer et recharger",
     },
     status: {
@@ -277,6 +281,8 @@ const translations = {
       invalidRange: "Entrez un min, max et pas valides.",
       emptyDeck: "Le paquet ne peut pas etre vide.",
       updateDeckFailed: "Impossible de mettre a jour le paquet.",
+      linkCopied: "Lien copie.",
+      copyFailed: "Impossible de copier le lien.",
     },
     notFound: {
       title: "Page introuvable",
@@ -697,6 +703,7 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
   const [includeQuestion, setIncludeQuestion] = useState(true);
   const [includeBreak, setIncludeBreak] = useState(true);
   const tableTopRef = useRef(null);
+  const shareLinkRef = useRef(null);
   const [tableSize, setTableSize] = useState({ width: 0, height: 0 });
   const unsubscribeRef = useRef(null);
 
@@ -969,6 +976,30 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
     setDeckDraft(serializeDeck(deckValues));
   };
 
+  const handleCopyLink = async () => {
+    if (!shareLink) return;
+    setNotice("");
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(shareLink);
+      } else if (shareLinkRef.current) {
+        shareLinkRef.current.focus();
+        shareLinkRef.current.select();
+        const successful = document.execCommand("copy");
+        window.getSelection()?.removeAllRanges?.();
+        shareLinkRef.current.blur();
+        if (!successful) {
+          throw new Error("copy");
+        }
+      } else {
+        throw new Error("copy");
+      }
+      setNotice(t("notices.linkCopied"));
+    } catch (error) {
+      setNotice(t("notices.copyFailed"));
+    }
+  };
+
   const myVote = votes.find((vote) => vote.user_id === userId);
   const selected = myVote ? myVote.vote_value : null;
   const revealed = room ? room.revealed : false;
@@ -987,7 +1018,8 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
     const count = votes.length;
     if (!count || !tableSize.width || !tableSize.height) return [];
     const seatSize = denseLayout ? 48 : 60;
-    return computeSeatPositions(count, tableSize.width, tableSize.height, seatSize, 28);
+    const padding = denseLayout ? 48 : 68;
+    return computeSeatPositions(count, tableSize.width, tableSize.height, seatSize, padding);
   }, [votes.length, tableSize.width, tableSize.height, denseLayout]);
 
   return (
@@ -1091,8 +1123,13 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
             <div className="divider"></div>
             <div className="share-grid">
               <div className="share-field">
-                <label htmlFor="share-link">{t("labels.shareLink")}</label>
-                <input id="share-link" className="input" value={shareLink} readOnly />
+                <div className="share-label-row">
+                  <label htmlFor="share-link">{t("labels.shareLink")}</label>
+                  <button className="button ghost small" type="button" onClick={handleCopyLink}>
+                    {t("actions.copyLink")}
+                  </button>
+                </div>
+                <input id="share-link" className="input" value={shareLink} readOnly ref={shareLinkRef} />
                 <p className="muted">{t("session.shareHint")}</p>
               </div>
               <div className="qr-panel">
@@ -1253,6 +1290,7 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
               {votes.map((vote, index) => {
                 const hasVote = Boolean(vote.vote_value);
                 const position = seatPositions[index] || { x: 0, y: 0 };
+                const sideClass = position.x < 0 ? " seat-left" : position.x > 0 ? " seat-right" : "";
                 let bubbleContent = "";
                 if (revealed) {
                   bubbleContent = hasVote ? getCardLabel(vote.vote_value, language) : "-";
@@ -1270,12 +1308,14 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
                 return (
                   <div
                     key={`${vote.room_id}_${vote.user_id}`}
-                    className={`seat${hasVote ? " voted" : ""}${revealed ? " revealed" : ""}`}
+                    className={`seat${hasVote ? " voted" : ""}${revealed ? " revealed" : ""}${sideClass}`}
                     style={{ "--x": `${position.x}px`, "--y": `${position.y}px` }}
                   >
                     <div className="seat-bubble">{bubbleContent}</div>
-                    <div className="seat-name">{vote.user_name || t("labels.anonymous")}</div>
-                    <div className="seat-status">{statusText}</div>
+                    <div className="seat-info">
+                      <div className="seat-name">{vote.user_name || t("labels.anonymous")}</div>
+                      <div className="seat-status">{statusText}</div>
+                    </div>
                   </div>
                 );
               })}
