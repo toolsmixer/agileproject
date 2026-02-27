@@ -390,31 +390,23 @@ function computeSeatPositions(count, width, height, seatSize, padding = 24) {
   const h = height + margin * 2;
   const halfW = w / 2;
   const halfH = h / 2;
-  const perimeter = 2 * (w + h);
-  const step = perimeter / count;
-  const offset = w / 2;
+  const leftCount = Math.ceil(count / 2);
+  const rightCount = Math.floor(count / 2);
 
-  const positions = [];
+  const positions = new Array(count);
+  const getY = (index, total) => {
+    if (total <= 1) return 0;
+    const step = h / (total + 1);
+    return -halfH + step * (index + 1);
+  };
+
   for (let i = 0; i < count; i += 1) {
-    let distance = (step * i + offset) % perimeter;
-    let x = 0;
-    let y = 0;
-
-    if (distance <= w) {
-      x = -halfW + distance;
-      y = -halfH;
-    } else if (distance <= w + h) {
-      x = halfW;
-      y = -halfH + (distance - w);
-    } else if (distance <= 2 * w + h) {
-      x = halfW - (distance - (w + h));
-      y = halfH;
-    } else {
-      x = -halfW;
-      y = halfH - (distance - (2 * w + h));
-    }
-
-    positions.push({ x, y });
+    const isLeft = i % 2 === 0;
+    const sideIndex = Math.floor(i / 2);
+    const total = isLeft ? leftCount : rightCount;
+    const x = isLeft ? -halfW : halfW;
+    const y = getY(sideIndex, total);
+    positions[i] = { x, y };
   }
 
   return positions;
