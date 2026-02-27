@@ -5,8 +5,8 @@
   };
 
   const DEFAULTS = {
-    url: "https://tozrzmaolggcszxxnaju.supabase.co",
-    anonKey: "sb_publishable_iHsP3xVlBF7fO7iqOCGjag_jgbCvTDs",
+    url: "https://dabwcsxuwqneizgkfevs.supabase.co",
+    anonKey: "sb_publishable_U07zYHM5Yfdne8uaKr_L9w_ejhoSSxo",
   };
 
   function loadSettings() {
