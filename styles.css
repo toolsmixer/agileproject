@@ -76,6 +76,21 @@ body {
   gap: 12px;
 }
 
+.page-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+}
+
+.page-header .back-link {
+  margin-bottom: 0;
+}
+
+.page-spacer {
+  justify-self: end;
+}
+
 .brand-title {
   font-family: "Playfair Display", serif;
   font-size: clamp(2rem, 4vw, 3.2rem);
@@ -160,6 +175,16 @@ body {
   gap: 8px;
   font-weight: 600;
   color: var(--accent-dark);
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .button {
@@ -302,12 +327,118 @@ body {
   margin-top: 16px;
 }
 
+.table-header {
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+}
+
+.table-header .inline-actions {
+  margin-top: 0;
+  justify-content: center;
+}
+
+.table-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  margin-top: 12px;
+}
+
+.card-panel {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  border: 1px solid rgba(26, 28, 30, 0.08);
+  box-shadow: var(--soft-shadow);
+}
+
+.card-panel h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.card-panel .card-list {
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+}
+
+.share-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto;
+  gap: 24px;
+  align-items: start;
+}
+
+.share-field label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.qr-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(26, 28, 30, 0.1);
+  min-width: 200px;
+}
+
+.qr-label {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+}
+
+.qr-code {
+  width: 170px;
+  height: 170px;
+  background: #ffffff;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  border: 1px solid rgba(26, 28, 30, 0.12);
+  box-shadow: var(--soft-shadow);
+}
+
+.qr-code canvas,
+.qr-code img {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+}
+
+.qr-hint {
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  text-align: center;
+}
+
 .session-header {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
   align-items: center;
   justify-content: space-between;
+}
+
+.session-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.session-controls {
+  justify-content: flex-end;
+  margin-top: 12px;
 }
 
 .status-pill {
@@ -320,11 +451,157 @@ body {
   font-size: 0.85rem;
 }
 
+.toggle-link {
+  border: 1px solid rgba(26, 28, 30, 0.2);
+  background: transparent;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.toggle-link:hover {
+  background: #f7f3ee;
+  border-color: rgba(26, 28, 30, 0.35);
+}
+
 .members-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
   margin-top: 16px;
+}
+
+.table-stage {
+  position: relative;
+  min-height: 360px;
+  display: grid;
+  place-items: center;
+  margin-top: 24px;
+  --seat-count: 1;
+  --radius: clamp(120px, calc(90px + var(--seat-count) * 6px), 220px);
+  --table-size: clamp(140px, calc(100px + var(--seat-count) * 4px), 200px);
+  --seat-size: 60px;
+  --seat-font: 0.9rem;
+}
+
+.table-stage.dense {
+  --seat-size: 48px;
+  --seat-font: 0.78rem;
+  min-height: 420px;
+}
+
+.table-top {
+  width: calc(var(--table-size) * 1.35);
+  height: calc(var(--table-size) * 0.7);
+  border-radius: 28px;
+  background: linear-gradient(135deg, #f8d9bb 0%, #e2a871 45%, #c67f49 75%, #b46b3a 100%);
+  box-shadow: 0 25px 50px rgba(26, 28, 30, 0.2);
+  border: 4px solid rgba(255, 255, 255, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  padding: 12px;
+}
+
+.table-label {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+}
+
+.table-sub {
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.table-empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.92);
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(26, 28, 30, 0.12);
+  font-weight: 600;
+}
+
+.seat {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120px;
+  text-align: center;
+  transform: translate(-50%, -50%) rotate(var(--angle)) translate(var(--radius))
+    rotate(calc(var(--angle) * -1));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.table-stage.dense .seat {
+  width: 92px;
+}
+
+.seat-bubble {
+  width: var(--seat-size);
+  height: var(--seat-size);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(26, 28, 30, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  box-shadow: var(--soft-shadow);
+}
+
+.seat:not(.voted) .seat-bubble {
+  background: #e7f0ff;
+  border-color: rgba(73, 120, 214, 0.5);
+  color: #1d3566;
+}
+
+.seat.voted .seat-bubble {
+  background: #fff2eb;
+  border-color: rgba(216, 76, 34, 0.4);
+  color: #2a9d60;
+}
+
+.seat.revealed.voted .seat-bubble {
+  background: #e6f7ee;
+  border-color: rgba(42, 157, 96, 0.6);
+  color: #0f5a36;
+}
+
+.vote-check {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  stroke-width: 3;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.seat-name {
+  font-weight: 600;
+  font-size: var(--seat-font);
+}
+
+.seat-status {
+  font-size: 0.78rem;
+  color: var(--ink-muted);
 }
 
 .member-card {
@@ -396,5 +673,26 @@ body {
 
   .session-header {
     align-items: flex-start;
+  }
+
+  .share-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .session-controls {
+    justify-content: center;
+  }
+
+  .table-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .table-stage {
+    min-height: 320px;
+    --seat-size: 52px;
+  }
+
+  .table-stage.dense {
+    min-height: 380px;
   }
 }

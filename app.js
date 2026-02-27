@@ -29,7 +29,7 @@ const tiles = [
   },
 ];
 
-const pokerCards = ["0", "1", "2", "3", "5", "8", "13", "21", "34", "55", "89", "?", "Break"];
+const pokerCards = ["0", "1", "2", "3", "5", "8", "13", "21", "?", "Break"];
 
 const STORAGE_KEYS = {
   userId: "scrum_user_id",
@@ -50,6 +50,59 @@ function useHashRoute() {
 
 function navigateTo(route) {
   window.location.hash = route;
+}
+
+function ArrowRight() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 12h14M13 5l7 7-7 7" />
+    </svg>
+  );
+}
+
+function ArrowLeft() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M19 12H5m6-7l-7 7 7 7" />
+    </svg>
+  );
+}
+
+function HomeIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 10.5l9-7 9 7M5 9.5V20h5v-6h4v6h5V9.5" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg className="vote-check" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 12.5l4 4 10-10" />
+    </svg>
+  );
+}
+
+function QrCode({ text }) {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    containerRef.current.innerHTML = "";
+    if (!text || !window.QRCode) return;
+    // QRCode is loaded via CDN in index.html
+    new window.QRCode(containerRef.current, {
+      text,
+      width: 160,
+      height: 160,
+      colorDark: "#1a1c1e",
+      colorLight: "#ffffff",
+      correctLevel: window.QRCode.CorrectLevel.M,
+    });
+  }, [text]);
+
+  return <div className="qr-code" ref={containerRef} aria-label="QR code" />;
 }
 
 function parseQueryString(queryString) {
@@ -112,7 +165,10 @@ function Tile({ item, index }) {
         <h3 className="tile-title">{item.title}</h3>
         <p className="tile-body">{item.description}</p>
       </div>
-      <span className="tile-cta">{item.cta} -&gt;</span>
+      <span className="tile-cta">
+        {item.cta}
+        <ArrowRight />
+      </span>
     </div>
   );
 }
@@ -196,9 +252,9 @@ function PokerPlanning({ queryString }) {
   const [roomCode, setRoomCode] = useState(normalizeRoomCode(query.room));
   const [room, setRoom] = useState(null);
   const [votes, setVotes] = useState([]);
-  const [storyDraft, setStoryDraft] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sessionExpanded, setSessionExpanded] = useState(false);
   const unsubscribeRef = useRef(null);
 
   useEffect(() => {
@@ -206,6 +262,10 @@ function PokerPlanning({ queryString }) {
       setRoomCode(normalizeRoomCode(query.room));
     }
   }, [query.room]);
+
+  useEffect(() => {
+    setSessionExpanded(false);
+  }, [room && room.id]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.userName, userName);
@@ -220,11 +280,31 @@ function PokerPlanning({ queryString }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!room) return;
+    let active = true;
+    const poll = () => {
+      if (!active) return;
+      refreshRoom(room.id).catch(() => {});
+    };
+    const intervalId = setInterval(poll, 4000);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        poll();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      active = false;
+      clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [room && room.id]);
+
   const refreshRoom = async (roomId) => {
     const [roomData, voteData] = await Promise.all([backend.getRoom(roomId), backend.listVotes(roomId)]);
     setRoom(roomData);
     setVotes(voteData || []);
-    setStoryDraft(roomData.story || "");
   };
 
   const subscribeToRoom = (roomId) => {
@@ -331,7 +411,6 @@ function PokerPlanning({ queryString }) {
       }
       setRoom(null);
       setVotes([]);
-      setStoryDraft("");
       setBusy(false);
     }
   };
@@ -375,19 +454,6 @@ function PokerPlanning({ queryString }) {
     }
   };
 
-  const handleStoryUpdate = async () => {
-    if (!room) return;
-    setBusy(true);
-    try {
-      await backend.updateRoom(room.id, { story: storyDraft });
-      await refreshRoom(room.id);
-    } catch (error) {
-      setNotice(error.message || "Unable to update story.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const myVote = votes.find((vote) => vote.user_id === userId);
   const selected = myVote ? myVote.vote_value : null;
   const revealed = room ? room.revealed : false;
@@ -400,19 +466,20 @@ function PokerPlanning({ queryString }) {
       ? window.location.href.split("#")[0]
       : `${window.location.origin}${window.location.pathname}`;
   const shareLink = room ? `${shareBase}#/poker-planning?room=${room.id}` : "";
+  const seatCount = Math.max(votes.length, 1);
+  const denseLayout = votes.length > 12;
 
   return (
     <div className="app-shell">
       <header className="header">
-        <a className="back-link" href="#/">&lt;- Back to toolkit</a>
-        <div className="brand">
+        <div className="page-header">
+          <a className="back-link" href="#/">
+            <HomeIcon />
+            Home menu
+          </a>
           <h1 className="brand-title">Poker planning</h1>
-          <span className="brand-tag">Estimate Together</span>
+          <div className="page-spacer" aria-hidden="true"></div>
         </div>
-        <p className="lede">
-          Create a room, share the code, and reveal votes together. Works on GitHub Pages with
-          Supabase as the backend.
-        </p>
       </header>
 
       {!backend.ready && <BackendSetup backendInstance={backend} />}
@@ -459,27 +526,20 @@ function PokerPlanning({ queryString }) {
               <h2>Session {room.id}</h2>
               <p className="muted">{room.name}</p>
             </div>
-            <div className="status-pill">
-              {revealed ? "Revealed" : "Hidden"} | Votes {votedCount}/{totalCount}
+            <div className="session-actions">
+              <div className="status-pill">
+                {revealed ? "Revealed" : "Hidden"} | Votes {votedCount}/{totalCount}
+              </div>
+              <button
+                className="toggle-link"
+                type="button"
+                onClick={() => setSessionExpanded((prev) => !prev)}
+              >
+                {sessionExpanded ? "Collapse" : "Expand"}
+              </button>
             </div>
           </div>
-          <div className="divider"></div>
-          <div className="form-grid">
-            <label htmlFor="share-link">Share link</label>
-            <input id="share-link" className="input" value={shareLink} readOnly />
-            <label htmlFor="story">Story or topic</label>
-            <textarea
-              id="story"
-              className="textarea"
-              placeholder="Paste the story or discussion topic"
-              value={storyDraft}
-              onChange={(event) => setStoryDraft(event.target.value)}
-            />
-          </div>
-          <div className="inline-actions">
-            <button className="button" type="button" onClick={handleStoryUpdate} disabled={busy}>
-              Update story
-            </button>
+          <div className="session-controls inline-actions">
             <button className="button secondary" type="button" onClick={handleReveal} disabled={busy}>
               Reveal votes
             </button>
@@ -490,56 +550,92 @@ function PokerPlanning({ queryString }) {
               Leave room
             </button>
           </div>
+          {sessionExpanded && (
+            <>
+              <div className="divider"></div>
+              <div className="share-grid">
+                <div className="share-field">
+                  <label htmlFor="share-link">Share link</label>
+                  <input id="share-link" className="input" value={shareLink} readOnly />
+                  <p className="muted">Send the link or share the QR code below.</p>
+                </div>
+                <div className="qr-panel">
+                  <div className="qr-label">QR code</div>
+                  <QrCode text={shareLink} />
+                  <div className="qr-hint">Scan to join this room</div>
+                </div>
+              </div>
+            </>
+          )}
         </section>
       )}
 
       {room && (
         <section className="section reveal" style={{ animationDelay: "0.2s" }}>
-          <h2>Team votes</h2>
-          <div className="members-grid">
-            {votes.length === 0 && <div className="member-card muted">No one has joined yet.</div>}
-            {votes.map((vote) => {
-              const hasVote = Boolean(vote.vote_value);
-              let display = "Waiting";
-              if (revealed && hasVote) {
-                display = vote.vote_value;
-              } else if (revealed && !hasVote) {
-                display = "-";
-              } else if (hasVote) {
-                display = "Voted";
-              }
-              return (
-                <div key={`${vote.room_id}_${vote.user_id}`} className="member-card">
-                  <div className="member-name">{vote.user_name || "Anonymous"}</div>
-                  <div className="member-value">{display}</div>
-                  {!revealed && <div className="muted">{hasVote ? "Locked" : "Not yet"}</div>}
+          <div className="table-header">
+            <h2>Estimation table</h2>
+          </div>
+          <div className="table-layout">
+            <div className="card-panel">
+              <h3>Pick a card</h3>
+              <p className="muted">Your selection stays hidden until the reveal.</p>
+              <div className="card-list">
+                {deck.map((card) => (
+                  <button
+                    key={card}
+                    type="button"
+                    className={card === selected ? "card selected" : "card"}
+                    onClick={() => handleSelectCard(card)}
+                    disabled={busy}
+                  >
+                    {card}
+                  </button>
+                ))}
+              </div>
+              <p>
+                <strong>Your pick:</strong> {selected || "No card yet"}
+              </p>
+            </div>
+            <div
+              className={`table-stage${denseLayout ? " dense" : ""}`}
+              style={{ "--seat-count": seatCount }}
+            >
+              <div className="table-top">
+                <div className="table-label">Room {room.id}</div>
+                <div className="table-sub">Votes {votedCount}/{totalCount}</div>
+              </div>
+              {votes.length === 0 && <div className="table-empty">Waiting for teammates</div>}
+              {votes.map((vote, index) => {
+                const hasVote = Boolean(vote.vote_value);
+                const angle = (360 / seatCount) * index - 90;
+                let bubbleContent = "";
+                if (revealed) {
+                  bubbleContent = hasVote ? vote.vote_value : "-";
+                } else if (hasVote) {
+                  bubbleContent = <CheckIcon />;
+                }
+                let statusText = "Waiting";
+                if (revealed && hasVote) {
+                  statusText = "Voted";
+                } else if (revealed && !hasVote) {
+                  statusText = "No vote";
+                } else if (hasVote) {
+                  statusText = "Voted";
+                }
+                return (
+                  <div
+                    key={`${vote.room_id}_${vote.user_id}`}
+                  className={`seat${hasVote ? " voted" : ""}${revealed ? " revealed" : ""}`}
+                  style={{ "--angle": `${angle}deg` }}
+                >
+                  <div className="seat-bubble">{bubbleContent}</div>
+                  <div className="seat-name">{vote.user_name || "Anonymous"}</div>
+                  <div className="seat-status">{statusText}</div>
                 </div>
               );
             })}
+            </div>
           </div>
-        </section>
-      )}
-
-      {room && (
-        <section className="section reveal" style={{ animationDelay: "0.26s" }}>
-          <h2>Pick a card</h2>
-          <p>Your selection stays hidden until the reveal.</p>
-          <div className="card-list">
-            {deck.map((card) => (
-              <button
-                key={card}
-                type="button"
-                className={card === selected ? "card selected" : "card"}
-                onClick={() => handleSelectCard(card)}
-                disabled={busy}
-              >
-                {card}
-              </button>
-            ))}
-          </div>
-          <p>
-            <strong>Your pick:</strong> {selected || "No card yet"}
-          </p>
         </section>
       )}
 
