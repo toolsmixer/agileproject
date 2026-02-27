@@ -713,8 +713,14 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
   const [rangeStep, setRangeStep] = useState("0.5");
   const [includeQuestion, setIncludeQuestion] = useState(true);
   const [includeBreak, setIncludeBreak] = useState(true);
+  const [cardFly, setCardFly] = useState(null);
+  const [seatFlyItems, setSeatFlyItems] = useState([]);
   const tableTopRef = useRef(null);
   const shareLinkRef = useRef(null);
+  const mySeatRef = useRef(null);
+  const seatRefs = useRef(new Map());
+  const previousVoteIdsRef = useRef(new Set());
+  const hasSeenVotesRef = useRef(false);
   const sessionNoticeTimeoutRef = useRef(null);
   const [tableSize, setTableSize] = useState({ width: 0, height: 0 });
   const unsubscribeRef = useRef(null);
@@ -728,6 +734,8 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
   useEffect(() => {
     setSessionOpen(false);
     setSettingsOpen(false);
+    previousVoteIdsRef.current = new Set();
+    hasSeenVotesRef.current = false;
   }, [room && room.id]);
 
   useEffect(() => {
@@ -752,6 +760,45 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!room) return;
+    if (!hasSeenVotesRef.current) {
+      previousVoteIdsRef.current = new Set(votes.map((vote) => vote.user_id));
+      hasSeenVotesRef.current = true;
+      return;
+    }
+    const prevIds = previousVoteIdsRef.current;
+    const newVotes = votes.filter((vote) => !prevIds.has(vote.user_id));
+    previousVoteIdsRef.current = new Set(votes.map((vote) => vote.user_id));
+    if (!newVotes.length) return;
+    requestAnimationFrame(() => {
+      const fromX = 28;
+      const fromY = 28;
+      const animations = newVotes
+        .map((vote) => {
+          const node = seatRefs.current.get(vote.user_id);
+          if (!node) return null;
+          const rect = node.getBoundingClientRect();
+          const toX = rect.left + rect.width / 2;
+          const toY = rect.top + rect.height / 2;
+          const name = (vote.user_name || t("labels.anonymous")).trim();
+          const label = name ? name[0].toUpperCase() : "";
+          return {
+            id: `seat_${vote.user_id}_${Date.now()}`,
+            label,
+            fromX,
+            fromY,
+            dx: toX - fromX,
+            dy: toY - fromY,
+          };
+        })
+        .filter(Boolean);
+      if (animations.length) {
+        setSeatFlyItems((items) => [...items, ...animations]);
+      }
+    });
+  }, [room, votes, t]);
 
   useEffect(() => {
     if (!sessionOpen) {
@@ -925,6 +972,32 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
     }
   };
 
+  const handleCardPick = async (card, event) => {
+    if (!room) return;
+    const seatEl = mySeatRef.current;
+    if (seatEl && event && event.currentTarget) {
+      const from = event.currentTarget.getBoundingClientRect();
+      const to = seatEl.getBoundingClientRect();
+      const fromX = from.left + from.width / 2;
+      const fromY = from.top + from.height / 2;
+      const toX = to.left + to.width / 2;
+      const toY = to.top + to.height / 2;
+      setCardFly({
+        id: `${Date.now()}_${card}`,
+        label: getCardLabel(card, language),
+        fromX,
+        fromY,
+        dx: toX - fromX,
+        dy: toY - fromY,
+      });
+    }
+    await handleSelectCard(card);
+  };
+
+  const handleSeatFlyEnd = (id) => {
+    setSeatFlyItems((items) => items.filter((item) => item.id !== id));
+  };
+
   const handleReveal = async () => {
     if (!room) return;
     setBusy(true);
@@ -1050,15 +1123,17 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
       ? window.location.href.split("#")[0]
       : `${window.location.origin}${window.location.pathname}`;
   const shareLink = room ? `${shareBase}#/poker-planning?room=${room.id}` : "";
-  const seatCount = Math.max(votes.length, 1);
-  const denseLayout = votes.length > 12;
+  const minSeatSlots = 8;
+  const seatSlots = Math.max(votes.length, minSeatSlots);
+  const seatCount = Math.max(seatSlots, 1);
+  const denseLayout = seatSlots > 12;
   const seatPositions = useMemo(() => {
-    const count = votes.length;
+    const count = seatSlots;
     if (!count || !tableSize.width || !tableSize.height) return [];
     const seatSize = denseLayout ? 48 : 60;
     const padding = denseLayout ? 48 : 68;
     return computeSeatPositions(count, tableSize.width, tableSize.height, seatSize, padding);
-  }, [votes.length, tableSize.width, tableSize.height, denseLayout]);
+  }, [seatSlots, tableSize.width, tableSize.height, denseLayout]);
 
   return (
     <div className="app-shell">
@@ -1106,6 +1181,42 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
       {!backend.ready && <BackendSetup backendInstance={backend} t={t} />}
 
       {notice && <div className="notice">{notice}</div>}
+      {seatFlyItems.length > 0 && (
+        <div className="seat-fly-layer" aria-hidden="true">
+          {seatFlyItems.map((item) => (
+            <div
+              key={item.id}
+              className="seat-fly"
+              style={{
+                "--from-x": `${item.fromX}px`,
+                "--from-y": `${item.fromY}px`,
+                "--dx": `${item.dx}px`,
+                "--dy": `${item.dy}px`,
+              }}
+              onAnimationEnd={() => handleSeatFlyEnd(item.id)}
+            >
+              {item.label}
+            </div>
+          ))}
+        </div>
+      )}
+      {cardFly && (
+        <div className="card-fly-layer" aria-hidden="true">
+          <div
+            key={cardFly.id}
+            className="card-fly"
+            style={{
+              "--from-x": `${cardFly.fromX}px`,
+              "--from-y": `${cardFly.fromY}px`,
+              "--dx": `${cardFly.dx}px`,
+              "--dy": `${cardFly.dy}px`,
+            }}
+            onAnimationEnd={() => setCardFly(null)}
+          >
+            {cardFly.label}
+          </div>
+        </div>
+      )}
 
       {backend.ready && !room && (
         <section className="section reveal" style={{ animationDelay: "0.12s" }}>
@@ -1305,7 +1416,7 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
                     key={card}
                     type="button"
                     className={card === selected ? "card selected" : "card"}
-                    onClick={() => handleSelectCard(card)}
+                    onClick={(event) => handleCardPick(card, event)}
                     disabled={busy}
                   >
                     {getCardLabel(card, language)}
@@ -1323,10 +1434,21 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
                 {averageValue && <div className="table-average">{t("table.average", { value: averageValue })}</div>}
               </div>
               {votes.length === 0 && <div className="table-empty">{t("table.waitingEmpty")}</div>}
-              {votes.map((vote, index) => {
-                const hasVote = Boolean(vote.vote_value);
-                const position = seatPositions[index] || { x: 0, y: 0 };
+              {seatPositions.map((position, index) => {
+                const vote = votes[index];
                 const sideClass = position.x < 0 ? " seat-left" : position.x > 0 ? " seat-right" : "";
+                if (!vote) {
+                  return (
+                    <div
+                      key={`empty_${index}`}
+                      className={`seat empty${sideClass}`}
+                      style={{ "--x": `${position.x}px`, "--y": `${position.y}px` }}
+                  >
+                    <div className="seat-chair" aria-hidden="true"></div>
+                  </div>
+                );
+                }
+                const hasVote = Boolean(vote.vote_value);
                 let bubbleContent = "";
                 if (revealed) {
                   bubbleContent = hasVote ? getCardLabel(vote.vote_value, language) : "-";
@@ -1347,7 +1469,21 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
                     className={`seat${hasVote ? " voted" : ""}${revealed ? " revealed" : ""}${sideClass}`}
                     style={{ "--x": `${position.x}px`, "--y": `${position.y}px` }}
                   >
-                    <div className="seat-bubble">{bubbleContent}</div>
+                    <div
+                      className="seat-bubble"
+                      ref={(node) => {
+                        if (node) {
+                          seatRefs.current.set(vote.user_id, node);
+                        } else {
+                          seatRefs.current.delete(vote.user_id);
+                        }
+                        if (vote.user_id === userId) {
+                          mySeatRef.current = node;
+                        }
+                      }}
+                    >
+                      {bubbleContent}
+                    </div>
                     <div className="seat-info">
                       <div className="seat-name">{vote.user_name || t("labels.anonymous")}</div>
                       <div className="seat-status">{statusText}</div>
