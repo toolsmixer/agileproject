@@ -383,6 +383,43 @@ function buildRangeValues(minValue, maxValue, stepValue) {
   return values;
 }
 
+function computeSeatPositions(count, width, height, seatSize, padding = 24) {
+  if (!count || !width || !height) return [];
+  const margin = seatSize / 2 + padding;
+  const w = width + margin * 2;
+  const h = height + margin * 2;
+  const halfW = w / 2;
+  const halfH = h / 2;
+  const perimeter = 2 * (w + h);
+  const step = perimeter / count;
+  const offset = w / 2;
+
+  const positions = [];
+  for (let i = 0; i < count; i += 1) {
+    let distance = (step * i + offset) % perimeter;
+    let x = 0;
+    let y = 0;
+
+    if (distance <= w) {
+      x = -halfW + distance;
+      y = -halfH;
+    } else if (distance <= w + h) {
+      x = halfW;
+      y = -halfH + (distance - w);
+    } else if (distance <= 2 * w + h) {
+      x = halfW - (distance - (w + h));
+      y = halfH;
+    } else {
+      x = -halfW;
+      y = halfH - (distance - (2 * w + h));
+    }
+
+    positions.push({ x, y });
+  }
+
+  return positions;
+}
+
 function getTileText(language, id) {
   const pack = getLanguagePack(language);
   const fallback = translations.en.tiles[id] || { title: "", description: "", cta: "" };
@@ -667,6 +704,8 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
   const [rangeStep, setRangeStep] = useState("0.5");
   const [includeQuestion, setIncludeQuestion] = useState(true);
   const [includeBreak, setIncludeBreak] = useState(true);
+  const tableTopRef = useRef(null);
+  const [tableSize, setTableSize] = useState({ width: 0, height: 0 });
   const unsubscribeRef = useRef(null);
 
   useEffect(() => {
@@ -718,6 +757,22 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
       clearInterval(intervalId);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
+  }, [room && room.id]);
+
+  useEffect(() => {
+    const element = tableTopRef.current;
+    if (!element) return;
+    const updateSize = () => {
+      setTableSize({ width: element.offsetWidth, height: element.offsetHeight });
+    };
+    updateSize();
+    if (window.ResizeObserver) {
+      const observer = new ResizeObserver(updateSize);
+      observer.observe(element);
+      return () => observer.disconnect();
+    }
+    window.addEventListener("resize", updateSize);
+    return () => window.removeEventListener("resize", updateSize);
   }, [room && room.id]);
 
   const refreshRoom = async (roomId) => {
@@ -936,6 +991,12 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
   const shareLink = room ? `${shareBase}#/poker-planning?room=${room.id}` : "";
   const seatCount = Math.max(votes.length, 1);
   const denseLayout = votes.length > 12;
+  const seatPositions = useMemo(() => {
+    const count = votes.length;
+    if (!count || !tableSize.width || !tableSize.height) return [];
+    const seatSize = denseLayout ? 48 : 60;
+    return computeSeatPositions(count, tableSize.width, tableSize.height, seatSize, 28);
+  }, [votes.length, tableSize.width, tableSize.height, denseLayout]);
 
   return (
     <div className="app-shell">
@@ -1192,14 +1253,14 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
               className={`table-stage${denseLayout ? " dense" : ""}`}
               style={{ "--seat-count": seatCount }}
             >
-              <div className="table-top">
+              <div className="table-top" ref={tableTopRef}>
                 <div className="table-label">{t("table.roomLabel", { id: room.id })}</div>
                 <div className="table-sub">{t("table.votesCount", { voted: votedCount, total: totalCount })}</div>
               </div>
               {votes.length === 0 && <div className="table-empty">{t("table.waitingEmpty")}</div>}
               {votes.map((vote, index) => {
                 const hasVote = Boolean(vote.vote_value);
-                const angle = (360 / seatCount) * index - 90;
+                const position = seatPositions[index] || { x: 0, y: 0 };
                 let bubbleContent = "";
                 if (revealed) {
                   bubbleContent = hasVote ? getCardLabel(vote.vote_value, language) : "-";
@@ -1218,7 +1279,7 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
                   <div
                     key={`${vote.room_id}_${vote.user_id}`}
                     className={`seat${hasVote ? " voted" : ""}${revealed ? " revealed" : ""}`}
-                    style={{ "--angle": `${angle}deg` }}
+                    style={{ "--x": `${position.x}px`, "--y": `${position.y}px` }}
                   >
                     <div className="seat-bubble">{bubbleContent}</div>
                     <div className="seat-name">{vote.user_name || t("labels.anonymous")}</div>
