@@ -8,6 +8,12 @@ const tiles = [
   { id: "standup", active: false, icon: "SF" },
 ];
 
+const reactionIcons = {
+  yourock: "icons/icon-yourock.png",
+  disagree: "icons/icon-disagree.png",
+  tired: "icons/icon-tired.png",
+};
+
 const STORAGE_KEYS = {
   userId: "scrum_user_id",
   userName: "scrum_user_name",
@@ -60,7 +66,7 @@ const translations = {
       shareTip: "Share the room code with your team once you create it.",
     },
     labels: {
-      yourName: "Your name",
+      yourName: "Your pseudo",
       roomCode: "Room code",
       shareLink: "Share link",
       qrCode: "QR code",
@@ -68,7 +74,7 @@ const translations = {
       anonymous: "Anonymous",
     },
     placeholders: {
-      name: "Name used for votes",
+      name: "Pseudo used for votes",
       roomCode: "ABC123",
       supabaseUrl: "https://YOUR_PROJECT.supabase.co",
       supabaseKey: "Your anon public key",
@@ -82,6 +88,7 @@ const translations = {
       leaveRoom: "Leave room",
       copyLink: "Copy link",
       saveReload: "Save and reload",
+      close: "Close",
     },
     status: {
       revealed: "Revealed",
@@ -97,11 +104,31 @@ const translations = {
       roomLabel: "Room {id}",
       votesCount: "Votes {voted}/{total}",
       average: "Average: {value}",
+      strike: "Striiiiike",
     },
     card: {
       title: "Pick a card",
       help: "Your selection stays hidden until the reveal.",
       none: "No card yet",
+    },
+    privacy: {
+      title: "Privacy",
+      intro: "This page explains the minimum data we handle to run poker planning sessions.",
+      dataTitle: "Session data",
+      dataBody:
+        "We store your pseudo, your vote, and the room code in Supabase so the session can work. This data is visible to anyone who has the room link.",
+      localTitle: "Local storage",
+      localBody:
+        "We store a random user id, your pseudo, and your language preference in your browser local storage.",
+      sharingTitle: "Sharing",
+      sharingBody: "Anyone with the room link can join and see the session data.",
+      contactTitle: "Contact",
+      contactBody: "Questions? Email straoss.inc@gmail.com.",
+    },
+    tooltips: {
+      youRock: "You rock teams",
+      disagree: "Disagree",
+      tired: "Tired",
     },
     session: {
       title: "Session {id}",
@@ -131,7 +158,7 @@ const translations = {
       applyRange: "Apply range",
     },
     notices: {
-      enterName: "Please enter your name to continue.",
+      enterName: "Please enter your pseudo to continue.",
       supabaseNotConfigured: "Supabase is not configured yet.",
       createFailed: "Unable to create room.",
       joinFailed: "Unable to join room.",
@@ -201,7 +228,7 @@ const translations = {
       shareTip: "Partagez le code de session avec votre equipe apres creation.",
     },
     labels: {
-      yourName: "Votre nom",
+      yourName: "Votre pseudo",
       roomCode: "Code de session",
       shareLink: "Lien de partage",
       qrCode: "QR code",
@@ -209,20 +236,21 @@ const translations = {
       anonymous: "Anonyme",
     },
     placeholders: {
-      name: "Nom affiche pour les votes",
+      name: "Pseudo affiché pour les votes",
       roomCode: "ABC123",
       supabaseUrl: "https://YOUR_PROJECT.supabase.co",
       supabaseKey: "Votre cle anon publique",
     },
     actions: {
-      startPlanning: "Demarrer une session de planning",
-      createRoom: "Creer une session",
+      startPlanning: "Démarrer une session de planning",
+      createRoom: "Créer une session",
       joinRoom: "Rejoindre",
-      revealVotes: "Reveler les votes",
-      resetVotes: "Reinitialiser les votes",
+      revealVotes: "Révéler les votes",
+      resetVotes: "Réinitialiser les votes",
       leaveRoom: "Quitter la session",
       copyLink: "Copier le lien",
       saveReload: "Enregistrer et recharger",
+      close: "Fermer",
     },
     status: {
       revealed: "Revele",
@@ -238,11 +266,31 @@ const translations = {
       roomLabel: "Salle {id}",
       votesCount: "Votes {voted}/{total}",
       average: "Moyenne: {value}",
+      strike: "Striiiiike",
     },
     card: {
       title: "Choisir une carte",
-      help: "Votre choix reste cache jusqu'a la revelation.",
+      help: "Votre choix reste caché jusqu'à la révélation.",
       none: "Aucune carte",
+    },
+    privacy: {
+      title: "Confidentialite",
+      intro: "Cette page explique les informations minimales traitees pour les sessions.",
+      dataTitle: "Donnees de session",
+      dataBody:
+        "Nous stockons votre pseudo, votre vote et le code de session dans Supabase pour faire fonctionner la session. Ces donnees sont visibles par toute personne ayant le lien.",
+      localTitle: "Stockage local",
+      localBody:
+        "Nous stockons un identifiant aleatoire, votre pseudo et votre langue dans le stockage local du navigateur.",
+      sharingTitle: "Partage",
+      sharingBody: "Toute personne ayant le lien peut rejoindre et voir les donnees de session.",
+      contactTitle: "Contact",
+      contactBody: "Questions ? Ecrivez a straoss.inc@gmail.com.",
+    },
+    tooltips: {
+      youRock: "Vous etes les meilleurs",
+      disagree: "Pas d'accord",
+      tired: "Fatigue",
     },
     session: {
       title: "Session {id}",
@@ -272,7 +320,7 @@ const translations = {
       applyRange: "Appliquer la plage",
     },
     notices: {
-      enterName: "Veuillez entrer votre nom pour continuer.",
+      enterName: "Veuillez entrer votre pseudo pour continuer.",
       supabaseNotConfigured: "Supabase n'est pas configure.",
       createFailed: "Impossible de creer la session.",
       joinFailed: "Impossible de rejoindre la session.",
@@ -632,16 +680,8 @@ function Home({ language, setLanguage, t }) {
         </div>
         <div className="brand">
           <h1 className="brand-title">{t("home.title")}</h1>
-          <span className="brand-tag">{t("home.tag")}</span>
         </div>
         <p className="lede">{t("home.lede")}</p>
-        <button
-          className="button"
-          type="button"
-          onClick={() => navigateTo("/poker-planning")}
-        >
-          {t("home.start")}
-        </button>
       </header>
 
       <section className="tile-grid" aria-label={t("home.toolsLabel")}>
@@ -650,7 +690,7 @@ function Home({ language, setLanguage, t }) {
         ))}
       </section>
 
-      <footer className="footer">{t("home.footer")}</footer>
+      <Footer />
     </div>
   );
 }
@@ -715,12 +755,16 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
   const [includeBreak, setIncludeBreak] = useState(true);
   const [cardFly, setCardFly] = useState(null);
   const [seatFlyItems, setSeatFlyItems] = useState([]);
+  const [reactionByUser, setReactionByUser] = useState({});
+  const [strikeVisible, setStrikeVisible] = useState(false);
+  const isInviteLink = Boolean(query.room);
   const tableTopRef = useRef(null);
   const shareLinkRef = useRef(null);
   const mySeatRef = useRef(null);
   const seatRefs = useRef(new Map());
   const previousVoteIdsRef = useRef(new Set());
   const hasSeenVotesRef = useRef(false);
+  const strikeTimeoutRef = useRef(null);
   const sessionNoticeTimeoutRef = useRef(null);
   const [tableSize, setTableSize] = useState({ width: 0, height: 0 });
   const unsubscribeRef = useRef(null);
@@ -736,6 +780,7 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
     setSettingsOpen(false);
     previousVoteIdsRef.current = new Set();
     hasSeenVotesRef.current = false;
+    setReactionByUser({});
   }, [room && room.id]);
 
   useEffect(() => {
@@ -750,6 +795,10 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
 
   useEffect(() => {
     return () => {
+      if (strikeTimeoutRef.current) {
+        clearTimeout(strikeTimeoutRef.current);
+        strikeTimeoutRef.current = null;
+      }
       if (sessionNoticeTimeoutRef.current) {
         clearTimeout(sessionNoticeTimeoutRef.current);
         sessionNoticeTimeoutRef.current = null;
@@ -867,6 +916,7 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
   };
 
   const handleCreateRoom = async () => {
+    if (isInviteLink) return;
     if (!backend.ready) {
       setNotice(t("notices.supabaseNotConfigured"));
       return;
@@ -953,6 +1003,7 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
       }
       setRoom(null);
       setVotes([]);
+      setReactionByUser({});
       setSessionOpen(false);
       setSettingsOpen(false);
       setBusy(false);
@@ -1104,18 +1155,60 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
     }
   };
 
+  const handleReaction = (type) => {
+    if (!room) return;
+    const isMember = votes.some((vote) => vote.user_id === userId);
+    if (!isMember) return;
+    setReactionByUser((prev) => {
+      const next = { ...prev };
+      if (next[userId] === type) {
+        delete next[userId];
+      } else {
+        next[userId] = type;
+      }
+      return next;
+    });
+  };
+
+  const handleYouRock = () => handleReaction("yourock");
+  const handleDisagree = () => handleReaction("disagree");
+  const handleTired = () => handleReaction("tired");
+
   const myVote = votes.find((vote) => vote.user_id === userId);
   const selected = myVote ? myVote.vote_value : null;
   const revealed = room ? room.revealed : false;
   const votedCount = votes.filter((vote) => vote.vote_value).length;
   const totalCount = votes.length;
-  const numericVotes = votes
+  const submittedVotes = votes.filter((vote) => vote.vote_value);
+  const numericVotes = submittedVotes
     .map((vote) => Number(vote.vote_value))
     .filter((value) => Number.isFinite(value));
   const averageValue =
     revealed && numericVotes.length
       ? formatAverage(numericVotes.reduce((sum, value) => sum + value, 0) / numericVotes.length)
       : "";
+  const strike =
+    revealed &&
+    submittedVotes.length > 1 &&
+    submittedVotes.every((vote) => vote.vote_value === submittedVotes[0].vote_value);
+
+  useEffect(() => {
+    if (!strike) {
+      setStrikeVisible(false);
+      if (strikeTimeoutRef.current) {
+        clearTimeout(strikeTimeoutRef.current);
+        strikeTimeoutRef.current = null;
+      }
+      return;
+    }
+    setStrikeVisible(true);
+    if (strikeTimeoutRef.current) {
+      clearTimeout(strikeTimeoutRef.current);
+    }
+    strikeTimeoutRef.current = setTimeout(() => {
+      setStrikeVisible(false);
+    }, 3200);
+  }, [strike]);
   const deck = room && Array.isArray(room.deck) ? room.deck : getDeck(language);
 
   const shareBase =
@@ -1131,7 +1224,7 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
     const count = seatSlots;
     if (!count || !tableSize.width || !tableSize.height) return [];
     const seatSize = denseLayout ? 48 : 60;
-    const padding = denseLayout ? 48 : 68;
+    const padding = denseLayout ? 52 : 70;
     return computeSeatPositions(count, tableSize.width, tableSize.height, seatSize, padding);
   }, [seatSlots, tableSize.width, tableSize.height, denseLayout]);
 
@@ -1240,10 +1333,12 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
             />
           </div>
           <div className="inline-actions">
-            <button className="button" type="button" onClick={handleCreateRoom} disabled={busy}>
-              {t("actions.createRoom")}
-            </button>
-            <button className="button secondary" type="button" onClick={handleJoinRoom} disabled={busy}>
+            {!isInviteLink && (
+              <button className="button" type="button" onClick={handleCreateRoom} disabled={busy}>
+                {t("actions.createRoom")}
+              </button>
+            )}
+            <button className="button join" type="button" onClick={handleJoinRoom} disabled={busy}>
               {t("actions.joinRoom")}
             </button>
           </div>
@@ -1287,6 +1382,11 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
                 <QrCode text={shareLink} label={t("labels.qrCode")} />
                 <div className="qr-hint">{t("qr.hint")}</div>
               </div>
+            </div>
+            <div className="session-actions">
+              <button className="button danger" type="button" onClick={handleLeaveRoom} disabled={busy}>
+                {t("actions.leaveRoom")}
+              </button>
             </div>
           </aside>
         </div>
@@ -1389,21 +1489,42 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
       {room && (
         <section className="section reveal" style={{ animationDelay: "0.2s" }}>
           <div className="table-header">
-            <h2>{t("table.title")}</h2>
             <div className="inline-actions">
-              <div className="status-pill">
-                {revealed ? t("status.revealed") : t("status.hidden")} |{" "}
-                {t("status.votesCount", { voted: votedCount, total: totalCount })}
-              </div>
               <button className="button secondary" type="button" onClick={handleReveal} disabled={busy}>
                 {t("actions.revealVotes")}
               </button>
               <button className="button ghost" type="button" onClick={handleReset} disabled={busy}>
                 {t("actions.resetVotes")}
               </button>
-              <button className="button ghost" type="button" onClick={handleLeaveRoom} disabled={busy}>
-                {t("actions.leaveRoom")}
-              </button>
+              <div className="reaction-stack">
+                <button
+                  className="reaction-button large"
+                  type="button"
+                  onClick={handleYouRock}
+                  aria-label={t("tooltips.youRock")}
+                  title={t("tooltips.youRock")}
+                >
+                  <img src="icons/icon-yourock.png" alt="" />
+                </button>
+                <button
+                  className="reaction-button large"
+                  type="button"
+                  onClick={handleDisagree}
+                  aria-label={t("tooltips.disagree")}
+                  title={t("tooltips.disagree")}
+                >
+                  <img src="icons/icon-disagree.png" alt="" />
+                </button>
+                <button
+                  className="reaction-button large"
+                  type="button"
+                  onClick={handleTired}
+                  aria-label={t("tooltips.tired")}
+                  title={t("tooltips.tired")}
+                >
+                  <img src="icons/icon-tired.png" alt="" />
+                </button>
+              </div>
             </div>
           </div>
           <div className="table-layout">
@@ -1432,6 +1553,7 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
                 <div className="table-label">{t("table.roomLabel", { id: room.id })}</div>
                 <div className="table-sub">{t("table.votesCount", { voted: votedCount, total: totalCount })}</div>
                 {averageValue && <div className="table-average">{t("table.average", { value: averageValue })}</div>}
+                {strike && strikeVisible && <div className="strike-badge">{t("table.strike")}</div>}
               </div>
               {votes.length === 0 && <div className="table-empty">{t("table.waitingEmpty")}</div>}
               {seatPositions.map((position, index) => {
@@ -1449,6 +1571,8 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
                 );
                 }
                 const hasVote = Boolean(vote.vote_value);
+                const reaction = reactionByUser[vote.user_id];
+                const reactionIcon = reaction ? reactionIcons[reaction] : null;
                 let bubbleContent = "";
                 if (revealed) {
                   bubbleContent = hasVote ? getCardLabel(vote.vote_value, language) : "-";
@@ -1483,6 +1607,7 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
                       }}
                     >
                       {bubbleContent}
+                      {reactionIcon && <img className="seat-reaction" src={reactionIcon} alt="" />}
                     </div>
                     <div className="seat-info">
                       <div className="seat-name">{vote.user_name || t("labels.anonymous")}</div>
@@ -1496,7 +1621,7 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
         </section>
       )}
 
-      <footer className="footer">{t("tip")}</footer>
+      <Footer />
     </div>
   );
 }
@@ -1514,7 +1639,58 @@ function NotFound({ language, setLanguage, t }) {
           {t("notFound.backHome")}
         </button>
       </header>
+      <Footer />
     </div>
+  );
+}
+
+function PrivacyModal({ t, onClose }) {
+  return (
+    <div className="privacy-modal" role="dialog" aria-modal="true">
+      <div className="privacy-backdrop" onClick={onClose}></div>
+      <div className="privacy-panel">
+        <div className="privacy-header">
+          <div>
+            <h2>{t("privacy.title")}</h2>
+            <p className="muted">{t("privacy.intro")}</p>
+          </div>
+          <button className="icon-button" type="button" onClick={onClose} aria-label={t("actions.close")}>
+            <CloseIcon />
+          </button>
+        </div>
+        <div className="privacy-body">
+          <h3>{t("privacy.dataTitle")}</h3>
+          <p className="muted">{t("privacy.dataBody")}</p>
+          <h3>{t("privacy.localTitle")}</h3>
+          <p className="muted">{t("privacy.localBody")}</p>
+          <h3>{t("privacy.sharingTitle")}</h3>
+          <p className="muted">{t("privacy.sharingBody")}</p>
+          <h3>{t("privacy.contactTitle")}</h3>
+          <p className="muted">{t("privacy.contactBody")}</p>
+        </div>
+        <div className="privacy-actions">
+          <button className="button" type="button" onClick={onClose}>
+            {t("actions.close")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="footer">
+      <span>Copyright © 2026 STRAOSS inc. All rights reserved.</span>
+      <div className="footer-links">
+        <a className="footer-link" href="mailto:straoss.inc@gmail.com">
+          Contact
+        </a>
+        <a className="footer-link" href="#/privacy">
+          Privacy
+        </a>
+      </div>
+    </footer>
   );
 }
 
@@ -1523,17 +1699,28 @@ function App() {
   const route = useMemo(() => hash.replace("#", ""), [hash]);
   const [path, queryString] = route.split("?");
   const [language, setLanguage] = useState(() => getInitialLanguage());
+  const lastRouteRef = useRef({ path: "/", queryString: "" });
 
   useEffect(() => {
     localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
     document.documentElement.lang = language;
   }, [language]);
 
+  useEffect(() => {
+    if (path === "/privacy") return;
+    const normalizedPath = path && path !== "" ? path : "/";
+    lastRouteRef.current = { path: normalizedPath, queryString: queryString || "" };
+  }, [path, queryString]);
+
   const t = (key, vars) => translate(language, key, vars);
+  const showPrivacyModal = path === "/privacy";
+  const activeRoute = showPrivacyModal ? lastRouteRef.current : { path: path || "/", queryString: queryString || "" };
   const pageTitle =
-    path === "/poker-planning"
+    showPrivacyModal
+      ? t("privacy.title")
+      : activeRoute.path === "/poker-planning"
       ? t("poker.title")
-      : path === "/" || path === ""
+      : activeRoute.path === "/" || activeRoute.path === ""
         ? t("home.title")
         : t("notFound.title");
 
@@ -1541,15 +1728,28 @@ function App() {
     document.title = pageTitle;
   }, [pageTitle]);
 
-  if (path === "/" || path === "") {
-    return <Home language={language} setLanguage={setLanguage} t={t} />;
-  }
+  const renderRoute = (routePath, routeQuery) => {
+    if (routePath === "/" || routePath === "") {
+      return <Home language={language} setLanguage={setLanguage} t={t} />;
+    }
+    if (routePath === "/poker-planning") {
+      return <PokerPlanning queryString={routeQuery} language={language} setLanguage={setLanguage} t={t} />;
+    }
+    return <NotFound language={language} setLanguage={setLanguage} t={t} />;
+  };
 
-  if (path === "/poker-planning") {
-    return <PokerPlanning queryString={queryString} language={language} setLanguage={setLanguage} t={t} />;
-  }
+  const closePrivacy = () => {
+    const target = lastRouteRef.current || { path: "/", queryString: "" };
+    const nextPath = target.path || "/";
+    navigateTo(target.queryString ? `${nextPath}?${target.queryString}` : nextPath);
+  };
 
-  return <NotFound language={language} setLanguage={setLanguage} t={t} />;
+  return (
+    <>
+      {renderRoute(activeRoute.path, activeRoute.queryString)}
+      {showPrivacyModal && <PrivacyModal t={t} onClose={closePrivacy} />}
+    </>
+  );
 }
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
