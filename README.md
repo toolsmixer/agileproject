@@ -33,9 +33,13 @@ create table public.votes (
   user_id text not null,
   user_name text,
   vote_value text,
+  reaction text,
   updated_at timestamptz not null default now(),
   unique (room_id, user_id)
 );
+
+-- If you already created the table, add the new column:
+-- alter table public.votes add column reaction text;
 
 alter table public.rooms enable row level security;
 alter table public.votes enable row level security;

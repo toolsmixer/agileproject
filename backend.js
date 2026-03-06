@@ -98,6 +98,7 @@
               user_id: user.id,
               user_name: user.name,
               vote_value: null,
+              reaction: null,
               updated_at: new Date().toISOString(),
             },
             { onConflict: "room_id,user_id" }
@@ -126,6 +127,17 @@
           );
         if (error) {
           throw new Error(formatError(error, "Unable to update vote"));
+        }
+      },
+      async updateReaction(roomId, userId, reaction) {
+        if (!client) throw new Error("Backend not configured");
+        const { error } = await client
+          .from("votes")
+          .update({ reaction: reaction || null, updated_at: new Date().toISOString() })
+          .eq("room_id", roomId)
+          .eq("user_id", userId);
+        if (error) {
+          throw new Error(formatError(error, "Unable to update reaction"));
         }
       },
       async updateRoom(roomId, patch) {

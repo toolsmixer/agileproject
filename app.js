@@ -178,6 +178,7 @@ const translations = {
       submitVoteFailed: "Unable to submit vote.",
       revealFailed: "Unable to reveal votes.",
       resetFailed: "Unable to reset votes.",
+      reactionFailed: "Unable to update reaction.",
       invalidRange: "Enter a valid min, max, and step.",
       emptyDeck: "Deck cannot be empty.",
       updateDeckFailed: "Unable to update deck.",
@@ -350,6 +351,7 @@ const translations = {
       submitVoteFailed: "Impossible d'envoyer le vote.",
       revealFailed: "Impossible de reveler les votes.",
       resetFailed: "Impossible de reinitialiser les votes.",
+      reactionFailed: "Impossible de mettre a jour la reaction.",
       invalidRange: "Entrez un min, max et pas valides.",
       emptyDeck: "Le paquet ne peut pas etre vide.",
       updateDeckFailed: "Impossible de mettre a jour le paquet.",
@@ -777,7 +779,6 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
   const [includeBreak, setIncludeBreak] = useState(true);
   const [cardFly, setCardFly] = useState(null);
   const [seatFlyItems, setSeatFlyItems] = useState([]);
-  const [reactionByUser, setReactionByUser] = useState({});
   const [strikeVisible, setStrikeVisible] = useState(false);
   const [viewMode, setViewMode] = useState("table");
   const isInviteLink = Boolean(query.room);
@@ -803,7 +804,6 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
     setSettingsOpen(false);
     previousVoteIdsRef.current = new Set();
     hasSeenVotesRef.current = false;
-    setReactionByUser({});
   }, [room && room.id]);
 
   useEffect(() => {
@@ -1027,7 +1027,6 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
       }
       setRoom(null);
       setVotes([]);
-      setReactionByUser({});
       setSessionOpen(false);
       setSettingsOpen(false);
       setBusy(false);
@@ -1179,19 +1178,17 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
     }
   };
 
-  const handleReaction = (type) => {
+  const handleReaction = async (type) => {
     if (!room) return;
-    const isMember = votes.some((vote) => vote.user_id === userId);
-    if (!isMember) return;
-    setReactionByUser((prev) => {
-      const next = { ...prev };
-      if (next[userId] === type) {
-        delete next[userId];
-      } else {
-        next[userId] = type;
-      }
-      return next;
-    });
+    const me = votes.find((vote) => vote.user_id === userId);
+    if (!me) return;
+    const nextReaction = me.reaction === type ? null : type;
+    try {
+      await backend.updateReaction(room.id, userId, nextReaction);
+      await refreshRoom(room.id);
+    } catch (error) {
+      setNotice(error.message || t("notices.reactionFailed"));
+    }
   };
 
   const handleYouRock = () => handleReaction("yourock");
@@ -1640,7 +1637,7 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
                     );
                   }
                   const hasVote = Boolean(vote.vote_value);
-                  const reaction = reactionByUser[vote.user_id];
+                  const reaction = vote.reaction;
                   const reactionIcon = reaction ? reactionIcons[reaction] : null;
                   let bubbleContent = "";
                   if (revealed) {
@@ -1679,7 +1676,7 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
                 {votes.length === 0 && <div className="list-empty">{t("table.waitingEmpty")}</div>}
                 {votes.map((vote) => {
                   const hasVote = Boolean(vote.vote_value);
-                  const reaction = reactionByUser[vote.user_id];
+                  const reaction = vote.reaction;
                   const reactionIcon = reaction ? reactionIcons[reaction] : null;
                   let bubbleContent = "";
                   if (revealed) {
