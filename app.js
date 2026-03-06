@@ -19,6 +19,8 @@ const STORAGE_KEYS = {
   userName: "scrum_user_name",
 };
 
+const SUPPORT_LINK = "https://buy.stripe.com/your-link";
+
 const LANGUAGE_STORAGE_KEY = "scrum_language";
 
 const translations = {
@@ -111,6 +113,10 @@ const translations = {
       help: "Your selection stays hidden until the reveal.",
       none: "No card yet",
     },
+    views: {
+      table: "Around table",
+      list: "List view",
+    },
     privacy: {
       title: "Privacy",
       intro: "This page explains the minimum data we handle to run poker planning sessions.",
@@ -156,6 +162,12 @@ const translations = {
       includeQuestion: "Include ?",
       includeBreak: "Include Break",
       applyRange: "Apply range",
+    },
+    support: {
+      title: "Support",
+      blurb: "If Poker Planning helped your session, you can support its development.",
+      button: "Support Poker Planning",
+      note: "Totally optional. The app remains free.",
     },
     notices: {
       enterName: "Please enter your pseudo to continue.",
@@ -273,6 +285,10 @@ const translations = {
       help: "Votre choix reste caché jusqu'à la révélation.",
       none: "Aucune carte",
     },
+    views: {
+      table: "Autour de la table",
+      list: "Vue liste",
+    },
     privacy: {
       title: "Confidentialite",
       intro: "Cette page explique les informations minimales traitees pour les sessions.",
@@ -318,6 +334,12 @@ const translations = {
       includeQuestion: "Inclure ?",
       includeBreak: "Inclure Pause",
       applyRange: "Appliquer la plage",
+    },
+    support: {
+      title: "Soutenir",
+      blurb: "Si Poker Planning vous a aide, vous pouvez soutenir son developpement.",
+      button: "Soutenir Poker Planning",
+      note: "Optionnel. L'app reste gratuite.",
     },
     notices: {
       enterName: "Veuillez entrer votre pseudo pour continuer.",
@@ -757,6 +779,7 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
   const [seatFlyItems, setSeatFlyItems] = useState([]);
   const [reactionByUser, setReactionByUser] = useState({});
   const [strikeVisible, setStrikeVisible] = useState(false);
+  const [viewMode, setViewMode] = useState("table");
   const isInviteLink = Boolean(query.room);
   const tableTopRef = useRef(null);
   const shareLinkRef = useRef(null);
@@ -877,6 +900,7 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
   }, [room && room.id]);
 
   useEffect(() => {
+    if (viewMode !== "table") return;
     const element = tableTopRef.current;
     if (!element) return;
     const updateSize = () => {
@@ -890,7 +914,7 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
     }
     window.addEventListener("resize", updateSize);
     return () => window.removeEventListener("resize", updateSize);
-  }, [room && room.id]);
+  }, [room && room.id, viewMode]);
 
   const refreshRoom = async (roomId) => {
     const [roomData, voteData] = await Promise.all([backend.getRoom(roomId), backend.listVotes(roomId)]);
@@ -1174,6 +1198,17 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
   const handleDisagree = () => handleReaction("disagree");
   const handleTired = () => handleReaction("tired");
 
+  const setSeatRef = (voteId) => (node) => {
+    if (node) {
+      seatRefs.current.set(voteId, node);
+    } else {
+      seatRefs.current.delete(voteId);
+    }
+    if (voteId === userId) {
+      mySeatRef.current = node;
+    }
+  };
+
   const myVote = votes.find((vote) => vote.user_id === userId);
   const selected = myVote ? myVote.vote_value : null;
   const revealed = room ? room.revealed : false;
@@ -1216,17 +1251,21 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
       ? window.location.href.split("#")[0]
       : `${window.location.origin}${window.location.pathname}`;
   const shareLink = room ? `${shareBase}#/poker-planning?room=${room.id}` : "";
+  const isTableView = viewMode === "table";
+  const maxTableSeats = 12;
+  const visibleVotes = isTableView ? votes.slice(0, maxTableSeats) : votes;
   const minSeatSlots = 8;
-  const seatSlots = Math.max(votes.length, minSeatSlots);
+  const seatSlots = isTableView ? Math.max(visibleVotes.length, minSeatSlots) : 0;
   const seatCount = Math.max(seatSlots, 1);
-  const denseLayout = seatSlots > 12;
+  const denseLayout = isTableView && visibleVotes.length > 10;
   const seatPositions = useMemo(() => {
+    if (!isTableView) return [];
     const count = seatSlots;
     if (!count || !tableSize.width || !tableSize.height) return [];
     const seatSize = denseLayout ? 48 : 60;
     const padding = denseLayout ? 52 : 70;
     return computeSeatPositions(count, tableSize.width, tableSize.height, seatSize, padding);
-  }, [seatSlots, tableSize.width, tableSize.height, denseLayout]);
+  }, [seatSlots, tableSize.width, tableSize.height, denseLayout, isTableView]);
 
   return (
     <div className="app-shell">
@@ -1482,6 +1521,19 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
                 </button>
               </div>
             </div>
+
+            <div className="divider"></div>
+
+            <div className="settings-section support-section">
+              <h3>{t("support.title")}</h3>
+              <p className="muted">{t("support.blurb")}</p>
+              <div className="inline-actions">
+                <a className="button ghost support-button" href={SUPPORT_LINK} target="_blank" rel="noopener">
+                  {t("support.button")}
+                </a>
+              </div>
+              <p className="muted support-note">{t("support.note")}</p>
+            </div>
           </aside>
         </div>
       )}
@@ -1489,11 +1541,27 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
       {room && (
         <section className="section reveal" style={{ animationDelay: "0.2s" }}>
           <div className="table-header">
+            <div className="view-toggle" role="group" aria-label="View">
+              <button
+                type="button"
+                className={`view-button${viewMode === "table" ? " active" : ""}`}
+                onClick={() => setViewMode("table")}
+              >
+                {t("views.table")}
+              </button>
+              <button
+                type="button"
+                className={`view-button${viewMode === "list" ? " active" : ""}`}
+                onClick={() => setViewMode("list")}
+              >
+                {t("views.list")}
+              </button>
+            </div>
             <div className="inline-actions">
-              <button className="button secondary" type="button" onClick={handleReveal} disabled={busy}>
+              <button className="button secondary table-action" type="button" onClick={handleReveal} disabled={busy}>
                 {t("actions.revealVotes")}
               </button>
-              <button className="button ghost" type="button" onClick={handleReset} disabled={busy}>
+              <button className="button ghost table-action" type="button" onClick={handleReset} disabled={busy}>
                 {t("actions.resetVotes")}
               </button>
               <div className="reaction-stack">
@@ -1545,78 +1613,106 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
                 ))}
               </div>
             </div>
-            <div
-              className={`table-stage${denseLayout ? " dense" : ""}`}
-              style={{ "--seat-count": seatCount }}
-            >
-              <div className="table-top" ref={tableTopRef}>
-                <div className="table-label">{t("table.roomLabel", { id: room.id })}</div>
-                <div className="table-sub">{t("table.votesCount", { voted: votedCount, total: totalCount })}</div>
-                {averageValue && <div className="table-average">{t("table.average", { value: averageValue })}</div>}
-                {strike && strikeVisible && <div className="strike-badge">{t("table.strike")}</div>}
-              </div>
-              {votes.length === 0 && <div className="table-empty">{t("table.waitingEmpty")}</div>}
-              {seatPositions.map((position, index) => {
-                const vote = votes[index];
-                const sideClass = position.x < 0 ? " seat-left" : position.x > 0 ? " seat-right" : "";
-                if (!vote) {
+            {isTableView ? (
+              <div
+                className={`table-stage${denseLayout ? " dense" : ""}`}
+                style={{ "--seat-count": seatCount }}
+              >
+                <div className="table-top" ref={tableTopRef}>
+                  <div className="table-label">{t("table.roomLabel", { id: room.id })}</div>
+                  <div className="table-sub">{t("table.votesCount", { voted: votedCount, total: totalCount })}</div>
+                  {averageValue && <div className="table-average">{t("table.average", { value: averageValue })}</div>}
+                  {strike && strikeVisible && <div className="strike-badge">{t("table.strike")}</div>}
+                </div>
+                {visibleVotes.length === 0 && <div className="table-empty">{t("table.waitingEmpty")}</div>}
+                {seatPositions.map((position, index) => {
+                  const vote = visibleVotes[index];
+                  const sideClass = position.x < 0 ? " seat-left" : position.x > 0 ? " seat-right" : "";
+                  if (!vote) {
+                    return (
+                      <div
+                        key={`empty_${index}`}
+                        className={`seat empty${sideClass}`}
+                        style={{ "--x": `${position.x}px`, "--y": `${position.y}px` }}
+                      >
+                        <div className="seat-chair" aria-hidden="true"></div>
+                      </div>
+                    );
+                  }
+                  const hasVote = Boolean(vote.vote_value);
+                  const reaction = reactionByUser[vote.user_id];
+                  const reactionIcon = reaction ? reactionIcons[reaction] : null;
+                  let bubbleContent = "";
+                  if (revealed) {
+                    bubbleContent = hasVote ? getCardLabel(vote.vote_value, language) : "-";
+                  } else if (hasVote) {
+                    bubbleContent = <CheckIcon />;
+                  }
+                  let statusText = t("status.waiting");
+                  if (revealed && hasVote) {
+                    statusText = t("status.voted");
+                  } else if (revealed && !hasVote) {
+                    statusText = t("status.noVote");
+                  } else if (hasVote) {
+                    statusText = t("status.voted");
+                  }
                   return (
                     <div
-                      key={`empty_${index}`}
-                      className={`seat empty${sideClass}`}
+                      key={`${vote.room_id}_${vote.user_id}`}
+                      className={`seat${hasVote ? " voted" : ""}${revealed ? " revealed" : ""}${sideClass}`}
                       style={{ "--x": `${position.x}px`, "--y": `${position.y}px` }}
-                  >
-                    <div className="seat-chair" aria-hidden="true"></div>
-                  </div>
-                );
-                }
-                const hasVote = Boolean(vote.vote_value);
-                const reaction = reactionByUser[vote.user_id];
-                const reactionIcon = reaction ? reactionIcons[reaction] : null;
-                let bubbleContent = "";
-                if (revealed) {
-                  bubbleContent = hasVote ? getCardLabel(vote.vote_value, language) : "-";
-                } else if (hasVote) {
-                  bubbleContent = <CheckIcon />;
-                }
-                let statusText = t("status.waiting");
-                if (revealed && hasVote) {
-                  statusText = t("status.voted");
-                } else if (revealed && !hasVote) {
-                  statusText = t("status.noVote");
-                } else if (hasVote) {
-                  statusText = t("status.voted");
-                }
-                return (
-                  <div
-                    key={`${vote.room_id}_${vote.user_id}`}
-                    className={`seat${hasVote ? " voted" : ""}${revealed ? " revealed" : ""}${sideClass}`}
-                    style={{ "--x": `${position.x}px`, "--y": `${position.y}px` }}
-                  >
-                    <div
-                      className="seat-bubble"
-                      ref={(node) => {
-                        if (node) {
-                          seatRefs.current.set(vote.user_id, node);
-                        } else {
-                          seatRefs.current.delete(vote.user_id);
-                        }
-                        if (vote.user_id === userId) {
-                          mySeatRef.current = node;
-                        }
-                      }}
                     >
-                      {bubbleContent}
-                      {reactionIcon && <img className="seat-reaction" src={reactionIcon} alt="" />}
+                      <div className="seat-bubble" ref={setSeatRef(vote.user_id)}>
+                        {bubbleContent}
+                        {reactionIcon && <img className="seat-reaction" src={reactionIcon} alt="" />}
+                      </div>
+                      <div className="seat-info">
+                        <div className="seat-name">{vote.user_name || t("labels.anonymous")}</div>
+                        <div className="seat-status">{statusText}</div>
+                      </div>
                     </div>
-                    <div className="seat-info">
-                      <div className="seat-name">{vote.user_name || t("labels.anonymous")}</div>
-                      <div className="seat-status">{statusText}</div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="seat-list">
+                {votes.length === 0 && <div className="list-empty">{t("table.waitingEmpty")}</div>}
+                {votes.map((vote) => {
+                  const hasVote = Boolean(vote.vote_value);
+                  const reaction = reactionByUser[vote.user_id];
+                  const reactionIcon = reaction ? reactionIcons[reaction] : null;
+                  let bubbleContent = "";
+                  if (revealed) {
+                    bubbleContent = hasVote ? getCardLabel(vote.vote_value, language) : "-";
+                  } else if (hasVote) {
+                    bubbleContent = <CheckIcon />;
+                  }
+                  let statusText = t("status.waiting");
+                  if (revealed && hasVote) {
+                    statusText = t("status.voted");
+                  } else if (revealed && !hasVote) {
+                    statusText = t("status.noVote");
+                  } else if (hasVote) {
+                    statusText = t("status.voted");
+                  }
+                  return (
+                    <div
+                      key={`${vote.room_id}_${vote.user_id}`}
+                      className={`seat-row${hasVote ? " voted" : ""}${revealed ? " revealed" : ""}`}
+                    >
+                      <div className="seat-bubble" ref={setSeatRef(vote.user_id)}>
+                        {bubbleContent}
+                        {reactionIcon && <img className="seat-reaction" src={reactionIcon} alt="" />}
+                      </div>
+                      <div className="seat-info">
+                        <div className="seat-name">{vote.user_name || t("labels.anonymous")}</div>
+                        <div className="seat-status">{statusText}</div>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </section>
       )}
