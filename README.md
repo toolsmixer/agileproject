@@ -38,8 +38,8 @@ create table public.votes (
   unique (room_id, user_id)
 );
 
--- If you already created the table, add the new column:
--- alter table public.votes add column reaction text;
+-- Existing project migration (run once if your votes table already exists):
+alter table public.votes add column if not exists reaction text;
 
 alter table public.rooms enable row level security;
 alter table public.votes enable row level security;

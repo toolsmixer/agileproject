@@ -38,7 +38,7 @@ const translations = {
     },
     tiles: {
       "poker-planning": {
-        title: "Poker planning",
+        title: "Poker Planning",
         description: "Run quick estimation rounds with Fibonacci-based cards.",
         cta: "Open tool",
       },
@@ -63,7 +63,7 @@ const translations = {
       closeSettings: "Close settings menu",
     },
     poker: {
-      title: "Poker planning",
+      title: "Poker Planning",
       startJoin: "Start or join a session",
       shareTip: "Share the room code with your team once you create it.",
     },
