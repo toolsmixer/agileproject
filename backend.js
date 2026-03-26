@@ -71,7 +71,7 @@
       async getRoom(id) {
         if (!client) throw new Error("Backend not configured");
         const { data, error } = await client.from("rooms").select("*").eq("id", id).single();
-        if (error) {
+        if (error || !data) {
           throw new Error(formatError(error, "Room not found"));
         }
         return data;

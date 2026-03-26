@@ -63,7 +63,7 @@ const translations = {
       closeSettings: "Close settings menu",
     },
     poker: {
-      title: "Poker Planning",
+      title: "Poker Planing",
       startJoin: "Start or join a session",
       shareTip: "Share the room code with your team once you create it.",
     },
@@ -174,6 +174,7 @@ const translations = {
       supabaseNotConfigured: "Supabase is not configured yet.",
       createFailed: "Unable to create room.",
       joinFailed: "Unable to join room.",
+      sessionClosed: "Session Closed, please create a new Session",
       enterRoom: "Enter a room code to join.",
       submitVoteFailed: "Unable to submit vote.",
       revealFailed: "Unable to reveal votes.",
@@ -347,6 +348,7 @@ const translations = {
       supabaseNotConfigured: "Supabase n'est pas configure.",
       createFailed: "Impossible de creer la session.",
       joinFailed: "Impossible de rejoindre la session.",
+      sessionClosed: "Session fermee, veuillez creer une nouvelle session",
       enterRoom: "Entrez un code de session pour rejoindre.",
       submitVoteFailed: "Impossible d'envoyer le vote.",
       revealFailed: "Impossible de reveler les votes.",
@@ -795,7 +797,22 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
 
   useEffect(() => {
     if (query.room) {
-      setRoomCode(normalizeRoomCode(query.room));
+      const normalized = normalizeRoomCode(query.room);
+      setRoomCode(normalized);
+      if (!normalized) return;
+
+      const checkRoom = async () => {
+        try {
+          await backend.getRoom(normalized);
+        } catch (error) {
+          if (isRoomClosedError(error)) {
+            redirectSessionClosed();
+          } else {
+            setNotice(error.message || t("notices.joinFailed"));
+          }
+        }
+      };
+      checkRoom();
     }
   }, [query.room]);
 
@@ -916,10 +933,34 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
     return () => window.removeEventListener("resize", updateSize);
   }, [room && room.id, viewMode]);
 
+  const isRoomClosedError = (error) => {
+    if (!error) return false;
+    const message = String(error.message || error).toLowerCase();
+    return message.includes("room not found") || message.includes("no rows found");
+  };
+
+  const redirectSessionClosed = () => {
+    setRoom(null);
+    setVotes([]);
+    setSessionOpen(false);
+    setSettingsOpen(false);
+    setNotice(t("notices.sessionClosed"));
+    setRoomCode("");
+    navigateTo("/poker-planning");
+  };
+
   const refreshRoom = async (roomId) => {
-    const [roomData, voteData] = await Promise.all([backend.getRoom(roomId), backend.listVotes(roomId)]);
-    setRoom(roomData);
-    setVotes(voteData || []);
+    try {
+      const [roomData, voteData] = await Promise.all([backend.getRoom(roomId), backend.listVotes(roomId)]);
+      setRoom(roomData);
+      setVotes(voteData || []);
+    } catch (error) {
+      if (isRoomClosedError(error)) {
+        redirectSessionClosed();
+        return;
+      }
+      throw error;
+    }
   };
 
   const subscribeToRoom = (roomId) => {
@@ -1009,7 +1050,11 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
       await refreshRoom(normalized);
       subscribeToRoom(normalized);
     } catch (error) {
-      setNotice(error.message || t("notices.joinFailed"));
+      if (isRoomClosedError(error)) {
+        redirectSessionClosed();
+      } else {
+        setNotice(error.message || t("notices.joinFailed"));
+      }
     } finally {
       setBusy(false);
     }
