@@ -796,25 +796,25 @@ function PokerPlanning({ queryString, language, setLanguage, t }) {
   const unsubscribeRef = useRef(null);
 
   useEffect(() => {
-    if (query.room) {
-      const normalized = normalizeRoomCode(query.room);
-      setRoomCode(normalized);
-      if (!normalized) return;
+    if (!query.room || !backend.ready) return;
 
-      const checkRoom = async () => {
-        try {
-          await backend.getRoom(normalized);
-        } catch (error) {
-          if (isRoomClosedError(error)) {
-            redirectSessionClosed();
-          } else {
-            setNotice(error.message || t("notices.joinFailed"));
-          }
+    const normalized = normalizeRoomCode(query.room);
+    setRoomCode(normalized);
+    if (!normalized) return;
+
+    const checkRoom = async () => {
+      try {
+        await backend.getRoom(normalized);
+      } catch (error) {
+        if (isRoomClosedError(error)) {
+          redirectSessionClosed();
+        } else {
+          setNotice(error.message || t("notices.joinFailed"));
         }
-      };
-      checkRoom();
-    }
-  }, [query.room]);
+      }
+    };
+    checkRoom();
+  }, [query.room, backend.ready]);
 
   useEffect(() => {
     setSessionOpen(false);

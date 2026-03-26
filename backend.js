@@ -71,9 +71,26 @@
       async getRoom(id) {
         if (!client) throw new Error("Backend not configured");
         const { data, error } = await client.from("rooms").select("*").eq("id", id).single();
-        if (error || !data) {
-          throw new Error(formatError(error, "Room not found"));
+        
+        if (error) {
+          const errorMsg = formatError(error, "");
+          const errorCode = error.code || "";
+          
+          // Detect Supabase "no rows" scenarios
+          const isNoRowsError = 
+            errorMsg.includes("Cannot coerce") || 
+            errorMsg.includes("No rows") || 
+            errorMsg.includes("no rows") ||
+            errorCode === "PGRST116" ||
+            (error.details && error.details.includes("Expected one row"));
+          
+          throw new Error(isNoRowsError ? "Room not found" : errorMsg);
         }
+        
+        if (!data) {
+          throw new Error("Room not found");
+        }
+        
         return data;
       },
       async listVotes(roomId) {
