@@ -4,6 +4,7 @@ const backend = window.createBackend();
 
 const tiles = [
   { id: "poker-planning", active: true, icon: "PP" },
+  { id: "wheel-of-name", active: true, icon: "WN" },
   { id: "retro", active: false, icon: "RB" },
   { id: "standup", active: false, icon: "SF" },
 ];
@@ -13,6 +14,9 @@ const reactionIcons = {
   disagree: "icons/icon-disagree.png",
   tired: "icons/icon-tired.png",
 };
+
+const WHEEL_COLORS = ["#ff8f66", "#ffc36b", "#f4e285", "#9ed2a9", "#86c5f4", "#9f9ff6", "#d8a3eb", "#f09daf"];
+const DEFAULT_WHEEL_NAMES = ["Alex", "Sam", "Jordan", "Taylor"];
 
 const STORAGE_KEYS = {
   userId: "scrum_user_id",
@@ -42,6 +46,11 @@ const translations = {
         description: "Run quick estimation rounds with Fibonacci-based cards.",
         cta: "Open tool",
       },
+      "wheel-of-name": {
+        title: "Wheel of Name",
+        description: "Add names, spin the wheel, and pick a random person.",
+        cta: "Open tool",
+      },
       retro: {
         title: "Retro board",
         description: "Collect highlights, lowlights, and ideas in one space.",
@@ -66,6 +75,23 @@ const translations = {
       title: "Poker Planing",
       startJoin: "Start or join a session",
       shareTip: "Share the room code with your team once you create it.",
+    },
+    wheel: {
+      title: "Wheel of Name",
+      intro: "Add names, remove names, then spin to pick one at random.",
+      addLabel: "Add a name",
+      addPlaceholder: "Type a name",
+      addButton: "Add name",
+      spin: "Spin wheel",
+      spinning: "Spinning...",
+      remove: "Remove",
+      removeName: "Remove {name}",
+      namesTitle: "Names",
+      namesEmpty: "No names yet. Add at least two to spin.",
+      winner: "Selected: {name}",
+      enterName: "Enter a name before adding.",
+      duplicateName: "That name is already on the wheel.",
+      needMoreNames: "Add at least two names to spin the wheel.",
     },
     labels: {
       yourName: "Your pseudo",
@@ -216,6 +242,11 @@ const translations = {
         description: "Lancez des estimations rapides avec des cartes Fibonacci.",
         cta: "Ouvrir",
       },
+      "wheel-of-name": {
+        title: "Roue des noms",
+        description: "Ajoutez des noms, lancez la roue, et tirez une personne au hasard.",
+        cta: "Ouvrir",
+      },
       retro: {
         title: "Tableau retro",
         description: "Collectez les points forts, points faibles et idees au meme endroit.",
@@ -240,6 +271,23 @@ const translations = {
       title: "Planning poker",
       startJoin: "Demarrer ou rejoindre une session",
       shareTip: "Partagez le code de session avec votre equipe apres creation.",
+    },
+    wheel: {
+      title: "Roue des noms",
+      intro: "Ajoutez des noms, retirez des noms, puis lancez la roue pour un tirage aleatoire.",
+      addLabel: "Ajouter un nom",
+      addPlaceholder: "Entrez un nom",
+      addButton: "Ajouter",
+      spin: "Lancer la roue",
+      spinning: "La roue tourne...",
+      remove: "Retirer",
+      removeName: "Retirer {name}",
+      namesTitle: "Noms",
+      namesEmpty: "Aucun nom pour le moment. Ajoutez-en au moins deux.",
+      winner: "Selection: {name}",
+      enterName: "Entrez un nom avant d'ajouter.",
+      duplicateName: "Ce nom est deja dans la roue.",
+      needMoreNames: "Ajoutez au moins deux noms pour lancer la roue.",
     },
     labels: {
       yourName: "Votre pseudo",
@@ -405,6 +453,28 @@ function getCardLabel(value, language) {
   if (!value) return "";
   const labels = pack.cardLabels || {};
   return labels[value] || value;
+}
+
+function sanitizeWheelName(value) {
+  return (value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 28);
+}
+
+function polarToCartesian(cx, cy, radius, angleDeg) {
+  const radians = ((angleDeg - 90) * Math.PI) / 180;
+  return {
+    x: cx + radius * Math.cos(radians),
+    y: cy + radius * Math.sin(radians),
+  };
+}
+
+function createWheelSlicePath(cx, cy, radius, startAngle, endAngle) {
+  const start = polarToCartesian(cx, cy, radius, startAngle);
+  const end = polarToCartesian(cx, cy, radius, endAngle);
+  const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
+  return `M ${cx} ${cy} L ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y} Z`;
 }
 
 function serializeDeck(deck) {
@@ -714,6 +784,220 @@ function Home({ language, setLanguage, t }) {
         {tiles.map((item, index) => (
           <Tile key={item.id} item={item} index={index} language={language} />
         ))}
+      </section>
+
+      <Footer />
+    </div>
+  );
+}
+
+function WheelOfName({ language, setLanguage, t }) {
+  const [names, setNames] = useState(() => [...DEFAULT_WHEEL_NAMES]);
+  const [nameDraft, setNameDraft] = useState("");
+  const [notice, setNotice] = useState("");
+  const [selectedName, setSelectedName] = useState("");
+  const [rotation, setRotation] = useState(0);
+  const [spinning, setSpinning] = useState(false);
+  const selectedIndexRef = useRef(null);
+  const spinTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timeoutId = setTimeout(() => setNotice(""), 2400);
+    return () => clearTimeout(timeoutId);
+  }, [notice]);
+
+  useEffect(() => {
+    return () => {
+      if (spinTimeoutRef.current) {
+        clearTimeout(spinTimeoutRef.current);
+        spinTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  const slices = useMemo(() => {
+    if (!names.length) return [];
+    const angle = 360 / names.length;
+    return names.map((name, index) => {
+      const startAngle = index * angle;
+      const endAngle = startAngle + angle;
+      const midAngle = startAngle + angle / 2;
+      const separator = polarToCartesian(180, 180, 172, startAngle);
+      const labelPoint = polarToCartesian(180, 180, 108, midAngle);
+      const shortName = name.length > 14 ? `${name.slice(0, 11)}...` : name;
+      return {
+        key: `${name}_${index}`,
+        fill: WHEEL_COLORS[index % WHEEL_COLORS.length],
+        path: createWheelSlicePath(180, 180, 172, startAngle, endAngle),
+        separator,
+        labelPoint,
+        label: shortName,
+      };
+    });
+  }, [names]);
+
+  const handleAddName = () => {
+    const nextName = sanitizeWheelName(nameDraft);
+    if (!nextName) {
+      setNotice(t("wheel.enterName"));
+      return;
+    }
+    const exists = names.some((name) => name.toLowerCase() === nextName.toLowerCase());
+    if (exists) {
+      setNotice(t("wheel.duplicateName"));
+      return;
+    }
+    setNames((current) => [...current, nextName]);
+    setNameDraft("");
+    setSelectedName("");
+    setNotice("");
+  };
+
+  const handleInputKeyDown = (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    handleAddName();
+  };
+
+  const handleRemoveName = (index) => {
+    if (spinning) return;
+    setNames((current) => current.filter((_, currentIndex) => currentIndex !== index));
+    setSelectedName("");
+  };
+
+  const handleSpin = () => {
+    if (spinning) return;
+    if (names.length < 2) {
+      setNotice(t("wheel.needMoreNames"));
+      return;
+    }
+    const targetIndex = Math.floor(Math.random() * names.length);
+    const angle = 360 / names.length;
+    const centerAngle = targetIndex * angle + angle / 2;
+    const normalizedCurrent = ((rotation % 360) + 360) % 360;
+    const targetNormalized = (360 - centerAngle) % 360;
+    const deltaToTarget = (targetNormalized - normalizedCurrent + 360) % 360;
+    const extraTurns = 6 + Math.floor(Math.random() * 2);
+
+    selectedIndexRef.current = targetIndex;
+    setSpinning(true);
+    setSelectedName("");
+    setRotation((current) => current + extraTurns * 360 + deltaToTarget);
+    if (spinTimeoutRef.current) {
+      clearTimeout(spinTimeoutRef.current);
+      spinTimeoutRef.current = null;
+    }
+    spinTimeoutRef.current = setTimeout(() => {
+      setSpinning(false);
+      const index = selectedIndexRef.current;
+      spinTimeoutRef.current = null;
+      if (index == null || !names[index]) return;
+      setSelectedName(names[index]);
+    }, 5900);
+  };
+
+  return (
+    <div className="app-shell">
+      <header className="header">
+        <div className="page-header">
+          <a className="back-link" href="#/">
+            <HomeIcon />
+            {t("menu.home")}
+          </a>
+          <h1 className="brand-title">{t("wheel.title")}</h1>
+          <div className="page-actions">
+            <LanguageMenu language={language} setLanguage={setLanguage} t={t} />
+          </div>
+        </div>
+        <p className="lede">{t("wheel.intro")}</p>
+      </header>
+
+      <section className="section reveal wheel-section" style={{ animationDelay: "0.08s" }}>
+        <div className="wheel-layout">
+          <div className="wheel-stage" aria-live="polite">
+            <div className="wheel-pointer" aria-hidden="true"></div>
+            <svg
+              className="wheel-svg"
+              viewBox="0 0 360 360"
+              role="img"
+              aria-label={t("wheel.title")}
+              style={{ transform: `rotate(${rotation}deg)` }}
+            >
+              <circle cx="180" cy="180" r="176" className="wheel-ring" />
+              {slices.map((slice) => (
+                <g key={slice.key}>
+                  <path d={slice.path} fill={slice.fill} />
+                  <line
+                    x1="180"
+                    y1="180"
+                    x2={slice.separator.x}
+                    y2={slice.separator.y}
+                    className="wheel-divider"
+                  />
+                  <text
+                    x={slice.labelPoint.x}
+                    y={slice.labelPoint.y}
+                    className="wheel-label"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                  >
+                    {slice.label}
+                  </text>
+                </g>
+              ))}
+              <circle cx="180" cy="180" r="28" className="wheel-hub" />
+              <circle cx="180" cy="180" r="6" className="wheel-core" />
+            </svg>
+          </div>
+
+          <div className="wheel-controls">
+            <h2>{t("wheel.namesTitle")}</h2>
+            <label htmlFor="wheel-name-input">{t("wheel.addLabel")}</label>
+            <div className="wheel-input-row">
+              <input
+                id="wheel-name-input"
+                className="input"
+                placeholder={t("wheel.addPlaceholder")}
+                value={nameDraft}
+                onChange={(event) => setNameDraft(event.target.value)}
+                onKeyDown={handleInputKeyDown}
+                disabled={spinning}
+              />
+              <button className="button" type="button" onClick={handleAddName} disabled={spinning}>
+                {t("wheel.addButton")}
+              </button>
+            </div>
+            {notice && <div className="notice">{notice}</div>}
+            <div className="wheel-name-list">
+              {names.length === 0 && <p className="muted wheel-empty">{t("wheel.namesEmpty")}</p>}
+              {names.map((name, index) => (
+                <div key={`${name}_${index}`} className="wheel-name-item">
+                  <span className="wheel-name-value">{name}</span>
+                  <button
+                    className="button ghost small wheel-remove-button"
+                    type="button"
+                    onClick={() => handleRemoveName(index)}
+                    disabled={spinning}
+                    aria-label={t("wheel.removeName", { name })}
+                  >
+                    {t("wheel.remove")}
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="inline-actions">
+              <button className="button secondary wheel-spin-button" type="button" onClick={handleSpin} disabled={spinning}>
+                {spinning ? t("wheel.spinning") : t("wheel.spin")}
+              </button>
+            </div>
+            {selectedName && !spinning && (
+              <div className="wheel-result" aria-live="polite">
+                {t("wheel.winner", { name: selectedName })}
+              </div>
+            )}
+          </div>
+        </div>
       </section>
 
       <Footer />
@@ -1858,6 +2142,8 @@ function App() {
       ? t("privacy.title")
       : activeRoute.path === "/poker-planning"
       ? t("poker.title")
+      : activeRoute.path === "/wheel-of-name"
+      ? t("wheel.title")
       : activeRoute.path === "/" || activeRoute.path === ""
         ? t("home.title")
         : t("notFound.title");
@@ -1872,6 +2158,9 @@ function App() {
     }
     if (routePath === "/poker-planning") {
       return <PokerPlanning queryString={routeQuery} language={language} setLanguage={setLanguage} t={t} />;
+    }
+    if (routePath === "/wheel-of-name") {
+      return <WheelOfName language={language} setLanguage={setLanguage} t={t} />;
     }
     return <NotFound language={language} setLanguage={setLanguage} t={t} />;
   };
