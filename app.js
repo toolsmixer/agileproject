@@ -4,10 +4,11 @@ const backend = window.createBackend();
 
 const tiles = [
   { id: "poker-planning", active: true, icon: "PP" },
-  { id: "wheel-of-name", active: true, icon: "WN" },
+  { id: "game-tools", active: true, icon: "GT" },
   { id: "retro", active: false, icon: "RB" },
   { id: "standup", active: false, icon: "SF" },
 ];
+const GAME_TOOL_IDS = ["wheel-of-name", "wave-length", "buzzer"];
 
 const reactionIcons = {
   yourock: "icons/icon-yourock.png",
@@ -17,6 +18,23 @@ const reactionIcons = {
 
 const WHEEL_COLORS = ["#ff8f66", "#ffc36b", "#f4e285", "#9ed2a9", "#86c5f4", "#9f9ff6", "#d8a3eb", "#f09daf"];
 const DEFAULT_WHEEL_NAMES = ["Alex", "Sam", "Jordan", "Taylor"];
+const DEFAULT_BUZZER_PLAYERS = ["Alex", "Sam", "Jordan", "Taylor"];
+const WAVE_PROMPTS = {
+  en: [
+    "Most energizing sprint ceremony",
+    "Most useful retrospective format",
+    "Most stressful release day moment",
+    "Most underrated team habit",
+    "Best snack for long workshops",
+  ],
+  fr: [
+    "Ceremonie sprint la plus energisante",
+    "Format de retrospective le plus utile",
+    "Moment de release le plus stressant",
+    "Habitude d'equipe la plus sous-estimee",
+    "Meilleur snack pour un long atelier",
+  ],
+};
 
 const STORAGE_KEYS = {
   userId: "scrum_user_id",
@@ -46,9 +64,24 @@ const translations = {
         description: "Run quick estimation rounds with Fibonacci-based cards.",
         cta: "Open tool",
       },
+      "game-tools": {
+        title: "Game tools",
+        description: "Open a game hub with Wheel of Name, Wave Length, and Buzzer.",
+        cta: "Open tool",
+      },
       "wheel-of-name": {
         title: "Wheel of Name",
         description: "Add names, spin the wheel, and pick a random person.",
+        cta: "Open tool",
+      },
+      "wave-length": {
+        title: "Wave Length",
+        description: "Set a hidden target on a scale and see how close the team's guess gets.",
+        cta: "Open tool",
+      },
+      buzzer: {
+        title: "Buzzer",
+        description: "First person to buzz is locked in and highlighted for the answer.",
         cta: "Open tool",
       },
       retro: {
@@ -92,6 +125,39 @@ const translations = {
       enterName: "Enter a name before adding.",
       duplicateName: "That name is already on the wheel.",
       needMoreNames: "Add at least two names to spin the wheel.",
+    },
+    gameTools: {
+      title: "Game tools",
+      intro: "Choose a game from this menu and launch it.",
+      selectLabel: "Choose a game tool",
+    },
+    wave: {
+      title: "Wave Length",
+      intro: "Use the hidden target and the clue to spark debate. Reveal and compare the guess.",
+      promptLabel: "Prompt",
+      guessLabel: "Team guess",
+      lowLabel: "Low",
+      highLabel: "High",
+      reveal: "Reveal target",
+      hide: "Hide target",
+      newRound: "New round",
+      target: "Target: {value}",
+      distance: "Distance: {value}",
+    },
+    buzzer: {
+      title: "Buzzer",
+      intro: "Add participants and start a round. The first buzz is locked and highlighted.",
+      playersTitle: "Players",
+      addLabel: "Add a player",
+      addPlaceholder: "Type a player name",
+      addButton: "Add player",
+      empty: "No players yet. Add at least two players.",
+      buzzNow: "Buzz now",
+      reset: "Reset round",
+      winner: "First buzz: {name}",
+      waiting: "Waiting for first buzz",
+      enterPlayer: "Enter a player name before adding.",
+      duplicatePlayer: "That player already exists.",
     },
     labels: {
       yourName: "Your pseudo",
@@ -242,9 +308,24 @@ const translations = {
         description: "Lancez des estimations rapides avec des cartes Fibonacci.",
         cta: "Ouvrir",
       },
+      "game-tools": {
+        title: "Outils de jeu",
+        description: "Ouvrez un hub de jeu avec Roue des noms, Wave Length et Buzzer.",
+        cta: "Ouvrir",
+      },
       "wheel-of-name": {
         title: "Roue des noms",
         description: "Ajoutez des noms, lancez la roue, et tirez une personne au hasard.",
+        cta: "Ouvrir",
+      },
+      "wave-length": {
+        title: "Wave Length",
+        description: "Definissez une cible cachee sur une echelle et mesurez la proximite de l'equipe.",
+        cta: "Ouvrir",
+      },
+      buzzer: {
+        title: "Buzzer",
+        description: "La premiere personne qui buzz est verrouillee et mise en evidence.",
         cta: "Ouvrir",
       },
       retro: {
@@ -288,6 +369,39 @@ const translations = {
       enterName: "Entrez un nom avant d'ajouter.",
       duplicateName: "Ce nom est deja dans la roue.",
       needMoreNames: "Ajoutez au moins deux noms pour lancer la roue.",
+    },
+    gameTools: {
+      title: "Outils de jeu",
+      intro: "Choisissez un jeu dans ce menu puis ouvrez-le.",
+      selectLabel: "Choisir un jeu",
+    },
+    wave: {
+      title: "Wave Length",
+      intro: "Utilisez la cible cachee et l'indice pour lancer le debat. Revelez ensuite la cible.",
+      promptLabel: "Prompt",
+      guessLabel: "Estimation de l'equipe",
+      lowLabel: "Bas",
+      highLabel: "Haut",
+      reveal: "Reveler la cible",
+      hide: "Masquer la cible",
+      newRound: "Nouveau round",
+      target: "Cible : {value}",
+      distance: "Ecart : {value}",
+    },
+    buzzer: {
+      title: "Buzzer",
+      intro: "Ajoutez des participants et demarrez un round. Le premier buzz est verrouille et mis en evidence.",
+      playersTitle: "Participants",
+      addLabel: "Ajouter un participant",
+      addPlaceholder: "Entrez un nom",
+      addButton: "Ajouter",
+      empty: "Aucun participant pour le moment. Ajoutez-en au moins deux.",
+      buzzNow: "Buzz",
+      reset: "Reinitialiser le round",
+      winner: "Premier buzz : {name}",
+      waiting: "En attente du premier buzz",
+      enterPlayer: "Entrez un nom avant d'ajouter.",
+      duplicatePlayer: "Ce participant existe deja.",
     },
     labels: {
       yourName: "Votre pseudo",
@@ -477,6 +591,14 @@ function createWheelSlicePath(cx, cy, radius, startAngle, endAngle) {
   return `M ${cx} ${cy} L ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y} Z`;
 }
 
+function createArcPath(cx, cy, radius, startAngle, endAngle) {
+  const start = polarToCartesian(cx, cy, radius, startAngle);
+  const end = polarToCartesian(cx, cy, radius, endAngle);
+  const delta = (endAngle - startAngle + 360) % 360;
+  const largeArcFlag = delta > 180 ? 1 : 0;
+  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`;
+}
+
 function serializeDeck(deck) {
   return Array.isArray(deck) ? deck.join(", ") : "";
 }
@@ -576,6 +698,20 @@ function getTileText(language, id) {
   const fallback = translations.en.tiles[id] || { title: "", description: "", cta: "" };
   const localized = pack.tiles && pack.tiles[id] ? pack.tiles[id] : {};
   return { ...fallback, ...localized };
+}
+
+function getWavePrompts(language) {
+  return WAVE_PROMPTS[language] || WAVE_PROMPTS.en;
+}
+
+function randomWaveTarget() {
+  return Math.floor(Math.random() * 101);
+}
+
+function pickWavePrompt(language) {
+  const prompts = getWavePrompts(language);
+  if (!prompts.length) return "";
+  return prompts[Math.floor(Math.random() * prompts.length)];
 }
 
 function getInitialLanguage() {
@@ -791,7 +927,66 @@ function Home({ language, setLanguage, t }) {
   );
 }
 
-function WheelOfName({ language, setLanguage, t }) {
+function GameTools({ language, setLanguage, t }) {
+  const [selectedGameTool, setSelectedGameTool] = useState(GAME_TOOL_IDS[0]);
+  const selectedGameToolText = getTileText(language, selectedGameTool);
+
+  return (
+    <div className="app-shell">
+      <header className="header">
+        <div className="page-header">
+          <a className="back-link" href="#/">
+            <HomeIcon />
+            {t("menu.home")}
+          </a>
+          <h1 className="brand-title">{t("gameTools.title")}</h1>
+          <div className="page-actions">
+            <LanguageMenu language={language} setLanguage={setLanguage} t={t} />
+          </div>
+        </div>
+        <p className="lede">{t("gameTools.intro")}</p>
+      </header>
+
+      <section className="section reveal game-tools-section" style={{ animationDelay: "0.08s" }}>
+        <div className="game-tools-row">
+          <div className="game-tools-picker">
+            <p className="game-tools-label">{t("gameTools.selectLabel")}</p>
+            <div className="game-tools-tabs" role="group" aria-label={t("gameTools.selectLabel")}>
+              {GAME_TOOL_IDS.map((toolId) => {
+                const toolText = getTileText(language, toolId);
+                const isActive = selectedGameTool === toolId;
+                return (
+                  <button
+                    key={toolId}
+                    type="button"
+                    aria-pressed={isActive}
+                    className={`game-tools-tab${isActive ? " active" : ""}`}
+                    onClick={() => setSelectedGameTool(toolId)}
+                  >
+                    {toolText.title}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+        <p className="muted game-tools-description">{selectedGameToolText.description}</p>
+      </section>
+
+      {selectedGameTool === "wheel-of-name" && (
+        <WheelOfName language={language} setLanguage={setLanguage} t={t} embedded={true} />
+      )}
+      {selectedGameTool === "wave-length" && (
+        <WaveLength language={language} setLanguage={setLanguage} t={t} embedded={true} />
+      )}
+      {selectedGameTool === "buzzer" && <Buzzer language={language} setLanguage={setLanguage} t={t} embedded={true} />}
+
+      <Footer />
+    </div>
+  );
+}
+
+function WheelOfName({ language, setLanguage, t, embedded = false }) {
   const [names, setNames] = useState(() => [...DEFAULT_WHEEL_NAMES]);
   const [nameDraft, setNameDraft] = useState("");
   const [notice, setNotice] = useState("");
@@ -897,6 +1092,99 @@ function WheelOfName({ language, setLanguage, t }) {
     }, 5900);
   };
 
+  const toolSection = (
+    <section className="section reveal wheel-section" style={{ animationDelay: "0.08s" }}>
+      <div className="wheel-layout">
+        <div className="wheel-stage" aria-live="polite">
+          <div className="wheel-pointer" aria-hidden="true"></div>
+          <svg
+            className="wheel-svg"
+            viewBox="0 0 360 360"
+            role="img"
+            aria-label={t("wheel.title")}
+            style={{ transform: `rotate(${rotation}deg)` }}
+          >
+            <circle cx="180" cy="180" r="176" className="wheel-ring" />
+            {slices.map((slice) => (
+              <g key={slice.key}>
+                <path d={slice.path} fill={slice.fill} />
+                <line
+                  x1="180"
+                  y1="180"
+                  x2={slice.separator.x}
+                  y2={slice.separator.y}
+                  className="wheel-divider"
+                />
+                <text
+                  x={slice.labelPoint.x}
+                  y={slice.labelPoint.y}
+                  className="wheel-label"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                >
+                  {slice.label}
+                </text>
+              </g>
+            ))}
+            <circle cx="180" cy="180" r="28" className="wheel-hub" />
+            <circle cx="180" cy="180" r="6" className="wheel-core" />
+          </svg>
+        </div>
+
+        <div className="wheel-controls">
+          <h2>{t("wheel.namesTitle")}</h2>
+          <label htmlFor={embedded ? "wheel-name-input-embedded" : "wheel-name-input"}>{t("wheel.addLabel")}</label>
+          <div className="wheel-input-row">
+            <input
+              id={embedded ? "wheel-name-input-embedded" : "wheel-name-input"}
+              className="input"
+              placeholder={t("wheel.addPlaceholder")}
+              value={nameDraft}
+              onChange={(event) => setNameDraft(event.target.value)}
+              onKeyDown={handleInputKeyDown}
+              disabled={spinning}
+            />
+            <button className="button" type="button" onClick={handleAddName} disabled={spinning}>
+              {t("wheel.addButton")}
+            </button>
+          </div>
+          {notice && <div className="notice">{notice}</div>}
+          <div className="wheel-name-list">
+            {names.length === 0 && <p className="muted wheel-empty">{t("wheel.namesEmpty")}</p>}
+            {names.map((name, index) => (
+              <div key={`${name}_${index}`} className="wheel-name-item">
+                <span className="wheel-name-value">{name}</span>
+                <button
+                  className="button ghost small wheel-remove-button"
+                  type="button"
+                  onClick={() => handleRemoveName(index)}
+                  disabled={spinning}
+                  aria-label={t("wheel.removeName", { name })}
+                >
+                  {t("wheel.remove")}
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="inline-actions">
+            <button className="button secondary wheel-spin-button" type="button" onClick={handleSpin} disabled={spinning}>
+              {spinning ? t("wheel.spinning") : t("wheel.spin")}
+            </button>
+          </div>
+          {selectedName && !spinning && (
+            <div className="wheel-result" aria-live="polite">
+              {t("wheel.winner", { name: selectedName })}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+
+  if (embedded) {
+    return toolSection;
+  }
+
   return (
     <div className="app-shell">
       <header className="header">
@@ -913,92 +1201,356 @@ function WheelOfName({ language, setLanguage, t }) {
         <p className="lede">{t("wheel.intro")}</p>
       </header>
 
-      <section className="section reveal wheel-section" style={{ animationDelay: "0.08s" }}>
-        <div className="wheel-layout">
-          <div className="wheel-stage" aria-live="polite">
-            <div className="wheel-pointer" aria-hidden="true"></div>
-            <svg
-              className="wheel-svg"
-              viewBox="0 0 360 360"
-              role="img"
-              aria-label={t("wheel.title")}
-              style={{ transform: `rotate(${rotation}deg)` }}
-            >
-              <circle cx="180" cy="180" r="176" className="wheel-ring" />
-              {slices.map((slice) => (
-                <g key={slice.key}>
-                  <path d={slice.path} fill={slice.fill} />
-                  <line
-                    x1="180"
-                    y1="180"
-                    x2={slice.separator.x}
-                    y2={slice.separator.y}
-                    className="wheel-divider"
-                  />
-                  <text
-                    x={slice.labelPoint.x}
-                    y={slice.labelPoint.y}
-                    className="wheel-label"
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                  >
-                    {slice.label}
-                  </text>
-                </g>
-              ))}
-              <circle cx="180" cy="180" r="28" className="wheel-hub" />
-              <circle cx="180" cy="180" r="6" className="wheel-core" />
-            </svg>
-          </div>
+      {toolSection}
 
-          <div className="wheel-controls">
-            <h2>{t("wheel.namesTitle")}</h2>
-            <label htmlFor="wheel-name-input">{t("wheel.addLabel")}</label>
-            <div className="wheel-input-row">
-              <input
-                id="wheel-name-input"
-                className="input"
-                placeholder={t("wheel.addPlaceholder")}
-                value={nameDraft}
-                onChange={(event) => setNameDraft(event.target.value)}
-                onKeyDown={handleInputKeyDown}
-                disabled={spinning}
+      <Footer />
+    </div>
+  );
+}
+
+function WaveLength({ language, setLanguage, t, embedded = false }) {
+  const [target, setTarget] = useState(() => randomWaveTarget());
+  const [guess, setGuess] = useState(50);
+  const [revealed, setRevealed] = useState(false);
+  const [prompt, setPrompt] = useState(() => pickWavePrompt(language));
+  const [gaugeDragging, setGaugeDragging] = useState(false);
+  const gaugeRef = useRef(null);
+  const distance = Math.abs(target - guess);
+  const gaugeSize = { width: 360, height: 220, cx: 180, cy: 180 };
+  const gaugeTrackRadius = 130;
+  const gaugeNeedleRadius = 98;
+  const gaugeStartAngle = 240;
+  const gaugeSweep = 240;
+  const gaugeEndAngle = (gaugeStartAngle + gaugeSweep) % 360;
+  const guessAngle = gaugeStartAngle + (guess / 100) * gaugeSweep;
+  const normalizedGuessAngle = ((guessAngle % 360) + 360) % 360;
+  const gaugeTrackPath = createArcPath(gaugeSize.cx, gaugeSize.cy, gaugeTrackRadius, gaugeStartAngle, gaugeEndAngle);
+  const gaugeProgressPath = createArcPath(gaugeSize.cx, gaugeSize.cy, gaugeTrackRadius, gaugeStartAngle, normalizedGuessAngle);
+  const gaugeTicks = Array.from({ length: 11 }, (_, index) => {
+    const ratio = index / 10;
+    const angle = gaugeStartAngle + ratio * gaugeSweep;
+    const outer = polarToCartesian(gaugeSize.cx, gaugeSize.cy, gaugeTrackRadius + 10, angle);
+    const inner = polarToCartesian(gaugeSize.cx, gaugeSize.cy, index % 5 === 0 ? gaugeTrackRadius - 20 : gaugeTrackRadius - 14, angle);
+    return {
+      key: index,
+      major: index % 5 === 0,
+      outer,
+      inner,
+    };
+  });
+
+  useEffect(() => {
+    setPrompt(pickWavePrompt(language));
+  }, [language]);
+
+  useEffect(() => {
+    if (!revealed) return;
+    setGaugeDragging(false);
+  }, [revealed]);
+
+  useEffect(() => {
+    if (!gaugeDragging) return;
+    const stopDragging = () => setGaugeDragging(false);
+    window.addEventListener("pointerup", stopDragging);
+    return () => window.removeEventListener("pointerup", stopDragging);
+  }, [gaugeDragging]);
+
+  const handleNewRound = () => {
+    setTarget(randomWaveTarget());
+    setGuess(50);
+    setRevealed(false);
+    setPrompt(pickWavePrompt(language));
+  };
+
+  const shortestAngleDistance = (a, b) => {
+    const diff = Math.abs(a - b) % 360;
+    return diff > 180 ? 360 - diff : diff;
+  };
+
+  const getGuessFromPointerEvent = (event) => {
+    if (!gaugeRef.current) return null;
+    const rect = gaugeRef.current.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    const localX = ((event.clientX - rect.left) / rect.width) * gaugeSize.width;
+    const localY = ((event.clientY - rect.top) / rect.height) * gaugeSize.height;
+    const angle = (Math.atan2(localY - gaugeSize.cy, localX - gaugeSize.cx) * 180) / Math.PI + 90;
+    const normalizedAngle = (angle + 360) % 360;
+    const clockwiseDistance = (normalizedAngle - gaugeStartAngle + 360) % 360;
+
+    let ratio = clockwiseDistance / gaugeSweep;
+    if (clockwiseDistance > gaugeSweep) {
+      const distToStart = shortestAngleDistance(normalizedAngle, gaugeStartAngle);
+      const distToEnd = shortestAngleDistance(normalizedAngle, gaugeEndAngle);
+      ratio = distToStart <= distToEnd ? 0 : 1;
+    }
+
+    return Math.round(Math.max(0, Math.min(1, ratio)) * 100);
+  };
+
+  const applyPointerGuess = (event) => {
+    if (revealed) return;
+    const nextGuess = getGuessFromPointerEvent(event);
+    if (nextGuess == null) return;
+    setGuess(nextGuess);
+  };
+
+  const handleGaugePointerDown = (event) => {
+    if (revealed) return;
+    event.preventDefault();
+    setGaugeDragging(true);
+    applyPointerGuess(event);
+  };
+
+  const handleGaugePointerMove = (event) => {
+    if (!gaugeDragging || revealed) return;
+    applyPointerGuess(event);
+  };
+
+  const adjustGuess = (delta) => {
+    if (revealed) return;
+    setGuess((current) => Math.max(0, Math.min(100, current + delta)));
+  };
+
+  const toolSection = (
+    <section className="section reveal wave-section" style={{ animationDelay: "0.08s" }}>
+      <p className="wave-prompt-label">{t("wave.promptLabel")}</p>
+      <div className="wave-prompt">{prompt}</div>
+
+      <div className="wave-guess-wrap">
+        <div className="wave-guess-header">
+          <span className="wave-guess-label">{t("wave.guessLabel")}</span>
+          <span className="wave-guess-value">{guess}</span>
+        </div>
+        <div className="wave-gauge-shell">
+          <svg
+            ref={gaugeRef}
+            className={`wave-gauge${revealed ? " readonly" : ""}`}
+            viewBox={`0 0 ${gaugeSize.width} ${gaugeSize.height}`}
+            role="img"
+            aria-label={t("wave.guessLabel")}
+            onPointerDown={handleGaugePointerDown}
+            onPointerMove={handleGaugePointerMove}
+            onPointerUp={() => setGaugeDragging(false)}
+            onPointerCancel={() => setGaugeDragging(false)}
+          >
+            <path d={gaugeTrackPath} className="wave-gauge-track" />
+            {guess > 0 && <path d={gaugeProgressPath} className="wave-gauge-progress" />}
+            {gaugeTicks.map((tick) => (
+              <line
+                key={tick.key}
+                x1={tick.outer.x}
+                y1={tick.outer.y}
+                x2={tick.inner.x}
+                y2={tick.inner.y}
+                className={`wave-gauge-tick${tick.major ? " major" : ""}`}
               />
-              <button className="button" type="button" onClick={handleAddName} disabled={spinning}>
-                {t("wheel.addButton")}
-              </button>
-            </div>
-            {notice && <div className="notice">{notice}</div>}
-            <div className="wheel-name-list">
-              {names.length === 0 && <p className="muted wheel-empty">{t("wheel.namesEmpty")}</p>}
-              {names.map((name, index) => (
-                <div key={`${name}_${index}`} className="wheel-name-item">
-                  <span className="wheel-name-value">{name}</span>
-                  <button
-                    className="button ghost small wheel-remove-button"
-                    type="button"
-                    onClick={() => handleRemoveName(index)}
-                    disabled={spinning}
-                    aria-label={t("wheel.removeName", { name })}
-                  >
-                    {t("wheel.remove")}
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div className="inline-actions">
-              <button className="button secondary wheel-spin-button" type="button" onClick={handleSpin} disabled={spinning}>
-                {spinning ? t("wheel.spinning") : t("wheel.spin")}
-              </button>
-            </div>
-            {selectedName && !spinning && (
-              <div className="wheel-result" aria-live="polite">
-                {t("wheel.winner", { name: selectedName })}
-              </div>
-            )}
+            ))}
+            <line
+              x1={gaugeSize.cx}
+              y1={gaugeSize.cy}
+              x2={gaugeSize.cx}
+              y2={gaugeSize.cy - gaugeNeedleRadius}
+              className="wave-gauge-needle"
+              transform={`rotate(${guessAngle} ${gaugeSize.cx} ${gaugeSize.cy})`}
+            />
+            <circle cx={gaugeSize.cx} cy={gaugeSize.cy} r="8" className="wave-gauge-hub" />
+          </svg>
+        </div>
+        <div className="wave-range-labels">
+          <span>{t("wave.lowLabel")}</span>
+          <span>{t("wave.highLabel")}</span>
+        </div>
+        <div className="wave-adjust-row">
+          <button className="button ghost small" type="button" onClick={() => adjustGuess(-5)} disabled={revealed || guess <= 0}>
+            -5
+          </button>
+          <button className="button ghost small" type="button" onClick={() => adjustGuess(-1)} disabled={revealed || guess <= 0}>
+            -1
+          </button>
+          <button className="button ghost small" type="button" onClick={() => adjustGuess(1)} disabled={revealed || guess >= 100}>
+            +1
+          </button>
+          <button className="button ghost small" type="button" onClick={() => adjustGuess(5)} disabled={revealed || guess >= 100}>
+            +5
+          </button>
+        </div>
+      </div>
+
+      <div className="inline-actions">
+        <button className="button secondary" type="button" onClick={handleNewRound}>
+          {t("wave.newRound")}
+        </button>
+        <button className="button" type="button" onClick={() => setRevealed((current) => !current)}>
+          {revealed ? t("wave.hide") : t("wave.reveal")}
+        </button>
+      </div>
+
+      {revealed && (
+        <div className="wave-result" aria-live="polite">
+          <p>{t("wave.target", { value: target })}</p>
+          <p>{t("wave.distance", { value: distance })}</p>
+        </div>
+      )}
+    </section>
+  );
+
+  if (embedded) {
+    return toolSection;
+  }
+
+  return (
+    <div className="app-shell">
+      <header className="header">
+        <div className="page-header">
+          <a className="back-link" href="#/">
+            <HomeIcon />
+            {t("menu.home")}
+          </a>
+          <h1 className="brand-title">{t("wave.title")}</h1>
+          <div className="page-actions">
+            <LanguageMenu language={language} setLanguage={setLanguage} t={t} />
           </div>
         </div>
-      </section>
+        <p className="lede">{t("wave.intro")}</p>
+      </header>
+
+      {toolSection}
+
+      <Footer />
+    </div>
+  );
+}
+
+function Buzzer({ language, setLanguage, t, embedded = false }) {
+  const [players, setPlayers] = useState(() => [...DEFAULT_BUZZER_PLAYERS]);
+  const [playerDraft, setPlayerDraft] = useState("");
+  const [winner, setWinner] = useState("");
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    if (!notice) return;
+    const timeoutId = setTimeout(() => setNotice(""), 2200);
+    return () => clearTimeout(timeoutId);
+  }, [notice]);
+
+  const handleAddPlayer = () => {
+    const nextPlayer = sanitizeWheelName(playerDraft);
+    if (!nextPlayer) {
+      setNotice(t("buzzer.enterPlayer"));
+      return;
+    }
+    const exists = players.some((player) => player.toLowerCase() === nextPlayer.toLowerCase());
+    if (exists) {
+      setNotice(t("buzzer.duplicatePlayer"));
+      return;
+    }
+    setPlayers((current) => [...current, nextPlayer]);
+    setPlayerDraft("");
+  };
+
+  const handleDraftKeyDown = (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    handleAddPlayer();
+  };
+
+  const handleRemovePlayer = (index) => {
+    setPlayers((current) => {
+      const removed = current[index];
+      if (removed && removed === winner) {
+        setWinner("");
+      }
+      return current.filter((_, currentIndex) => currentIndex !== index);
+    });
+  };
+
+  const handleBuzz = (playerName) => {
+    if (winner) return;
+    setWinner(playerName);
+  };
+
+  const handleReset = () => {
+    setWinner("");
+  };
+
+  const toolSection = (
+    <section className="section reveal buzzer-section" style={{ animationDelay: "0.08s" }}>
+      <div className="buzzer-top">
+        <h2>{t("buzzer.playersTitle")}</h2>
+        <button className="button secondary" type="button" onClick={handleReset}>
+          {t("buzzer.reset")}
+        </button>
+      </div>
+
+      <label htmlFor={embedded ? "buzzer-player-input-embedded" : "buzzer-player-input"}>{t("buzzer.addLabel")}</label>
+      <div className="wheel-input-row">
+        <input
+          id={embedded ? "buzzer-player-input-embedded" : "buzzer-player-input"}
+          className="input"
+          value={playerDraft}
+          placeholder={t("buzzer.addPlaceholder")}
+          onChange={(event) => setPlayerDraft(event.target.value)}
+          onKeyDown={handleDraftKeyDown}
+        />
+        <button className="button" type="button" onClick={handleAddPlayer}>
+          {t("buzzer.addButton")}
+        </button>
+      </div>
+
+      {notice && <div className="notice">{notice}</div>}
+
+      <div className={`buzzer-winner${winner ? " active" : ""}`} aria-live="polite">
+        {winner ? t("buzzer.winner", { name: winner }) : t("buzzer.waiting")}
+      </div>
+
+      <div className="buzzer-grid">
+        {players.length === 0 && <p className="muted wheel-empty">{t("buzzer.empty")}</p>}
+        {players.map((player, index) => {
+          const isWinner = winner && player === winner;
+          return (
+            <div key={`${player}_${index}`} className={`buzzer-player${isWinner ? " winner" : ""}`}>
+              <span className="buzzer-player-name">{player}</span>
+              <div className="buzzer-player-actions">
+                <button className="button" type="button" onClick={() => handleBuzz(player)} disabled={Boolean(winner)}>
+                  {t("buzzer.buzzNow")}
+                </button>
+                <button
+                  className="button ghost small"
+                  type="button"
+                  onClick={() => handleRemovePlayer(index)}
+                  aria-label={t("wheel.removeName", { name: player })}
+                >
+                  {t("wheel.remove")}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+
+  if (embedded) {
+    return toolSection;
+  }
+
+  return (
+    <div className="app-shell">
+      <header className="header">
+        <div className="page-header">
+          <a className="back-link" href="#/">
+            <HomeIcon />
+            {t("menu.home")}
+          </a>
+          <h1 className="brand-title">{t("buzzer.title")}</h1>
+          <div className="page-actions">
+            <LanguageMenu language={language} setLanguage={setLanguage} t={t} />
+          </div>
+        </div>
+        <p className="lede">{t("buzzer.intro")}</p>
+      </header>
+
+      {toolSection}
 
       <Footer />
     </div>
@@ -2142,8 +2694,14 @@ function App() {
       ? t("privacy.title")
       : activeRoute.path === "/poker-planning"
       ? t("poker.title")
+      : activeRoute.path === "/game-tools"
+      ? t("gameTools.title")
       : activeRoute.path === "/wheel-of-name"
       ? t("wheel.title")
+      : activeRoute.path === "/wave-length"
+      ? t("wave.title")
+      : activeRoute.path === "/buzzer"
+      ? t("buzzer.title")
       : activeRoute.path === "/" || activeRoute.path === ""
         ? t("home.title")
         : t("notFound.title");
@@ -2159,8 +2717,17 @@ function App() {
     if (routePath === "/poker-planning") {
       return <PokerPlanning queryString={routeQuery} language={language} setLanguage={setLanguage} t={t} />;
     }
+    if (routePath === "/game-tools") {
+      return <GameTools language={language} setLanguage={setLanguage} t={t} />;
+    }
     if (routePath === "/wheel-of-name") {
       return <WheelOfName language={language} setLanguage={setLanguage} t={t} />;
+    }
+    if (routePath === "/wave-length") {
+      return <WaveLength language={language} setLanguage={setLanguage} t={t} />;
+    }
+    if (routePath === "/buzzer") {
+      return <Buzzer language={language} setLanguage={setLanguage} t={t} />;
     }
     return <NotFound language={language} setLanguage={setLanguage} t={t} />;
   };
