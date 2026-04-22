@@ -36,6 +36,18 @@ const WAVE_PROMPTS = {
   ],
 };
 
+// Developer configuration: Wave Length score rules.
+// Update these values directly to change scoring behavior.
+const WAVE_SCORING_CONFIG = Object.freeze({
+  blueZonePoints: 5,
+  redZonePoints: 3,
+  yellowZonePoints: 1,
+  outsidePoints: 0,
+});
+const WAVE_TARGET_ZONE_DISTANCE = 5;
+const WAVE_TARGET_OUTER_ZONE_DISTANCE = 10;
+const WAVE_TARGET_FAR_ZONE_DISTANCE = 15;
+
 const STORAGE_KEYS = {
   userId: "scrum_user_id",
   userName: "scrum_user_name",
@@ -135,7 +147,12 @@ const translations = {
       title: "Wave Length",
       intro: "Use the hidden target and the clue to spark debate. Reveal and compare the guess.",
       promptLabel: "Prompt",
+      resetPrompt: "Reset prompt",
       guessLabel: "Team guess",
+      targetLabel: "Target",
+      setTargetStep: "Adjust a target on the gauge, then lock it.",
+      guessStep: "Target is locked and hidden. Set the team guess.",
+      lockTarget: "Lock target",
       lowLabel: "Low",
       highLabel: "High",
       reveal: "Reveal target",
@@ -143,6 +160,7 @@ const translations = {
       newRound: "New round",
       target: "Target: {value}",
       distance: "Distance: {value}",
+      score: "Score: {value}",
     },
     buzzer: {
       title: "Buzzer",
@@ -379,7 +397,12 @@ const translations = {
       title: "Wave Length",
       intro: "Utilisez la cible cachee et l'indice pour lancer le debat. Revelez ensuite la cible.",
       promptLabel: "Prompt",
+      resetPrompt: "Reinitialiser le prompt",
       guessLabel: "Estimation de l'equipe",
+      targetLabel: "Cible",
+      setTargetStep: "Ajustez une cible sur le compteur puis verrouillez-la.",
+      guessStep: "La cible est verrouillee et cachee. Definissez l'estimation equipe.",
+      lockTarget: "Verrouiller la cible",
       lowLabel: "Bas",
       highLabel: "Haut",
       reveal: "Reveler la cible",
@@ -387,6 +410,7 @@ const translations = {
       newRound: "Nouveau round",
       target: "Cible : {value}",
       distance: "Ecart : {value}",
+      score: "Score : {value}",
     },
     buzzer: {
       title: "Buzzer",
@@ -599,6 +623,34 @@ function createArcPath(cx, cy, radius, startAngle, endAngle) {
   return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`;
 }
 
+function createSectorPath(cx, cy, radius, startAngle, endAngle) {
+  const start = polarToCartesian(cx, cy, radius, startAngle);
+  const end = polarToCartesian(cx, cy, radius, endAngle);
+  const delta = (endAngle - startAngle + 360) % 360;
+  const largeArcFlag = delta > 180 ? 1 : 0;
+  return `M ${cx} ${cy} L ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y} Z`;
+}
+
+function parseWaveNumber(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function computeWaveScore(distance, config, blueZoneDistance, redZoneDistance, yellowZoneDistance) {
+  const blueMaxDistance = Math.max(0, parseWaveNumber(blueZoneDistance, 5));
+  const redMaxDistance = Math.max(blueMaxDistance, parseWaveNumber(redZoneDistance, 10));
+  const yellowMaxDistance = Math.max(redMaxDistance, parseWaveNumber(yellowZoneDistance, 15));
+  const blueZonePoints = parseWaveNumber(config.blueZonePoints, 5);
+  const redZonePoints = parseWaveNumber(config.redZonePoints, 3);
+  const yellowZonePoints = parseWaveNumber(config.yellowZonePoints, 1);
+  const outsidePoints = parseWaveNumber(config.outsidePoints, 0);
+
+  if (distance <= blueMaxDistance) return blueZonePoints;
+  if (distance <= redMaxDistance) return redZonePoints;
+  if (distance <= yellowMaxDistance) return yellowZonePoints;
+  return outsidePoints;
+}
+
 function serializeDeck(deck) {
   return Array.isArray(deck) ? deck.join(", ") : "";
 }
@@ -702,10 +754,6 @@ function getTileText(language, id) {
 
 function getWavePrompts(language) {
   return WAVE_PROMPTS[language] || WAVE_PROMPTS.en;
-}
-
-function randomWaveTarget() {
-  return Math.floor(Math.random() * 101);
 }
 
 function pickWavePrompt(language) {
@@ -1209,10 +1257,11 @@ function WheelOfName({ language, setLanguage, t, embedded = false }) {
 }
 
 function WaveLength({ language, setLanguage, t, embedded = false }) {
-  const [target, setTarget] = useState(() => randomWaveTarget());
+  const [target, setTarget] = useState(50);
   const [guess, setGuess] = useState(50);
   const [revealed, setRevealed] = useState(false);
   const [prompt, setPrompt] = useState(() => pickWavePrompt(language));
+  const [targetLocked, setTargetLocked] = useState(false);
   const [gaugeDragging, setGaugeDragging] = useState(false);
   const gaugeRef = useRef(null);
   const distance = Math.abs(target - guess);
@@ -1223,9 +1272,51 @@ function WaveLength({ language, setLanguage, t, embedded = false }) {
   const gaugeSweep = 240;
   const gaugeEndAngle = (gaugeStartAngle + gaugeSweep) % 360;
   const guessAngle = gaugeStartAngle + (guess / 100) * gaugeSweep;
+  const targetAngle = gaugeStartAngle + (target / 100) * gaugeSweep;
   const normalizedGuessAngle = ((guessAngle % 360) + 360) % 360;
+  const normalizedTargetAngle = ((targetAngle % 360) + 360) % 360;
   const gaugeTrackPath = createArcPath(gaugeSize.cx, gaugeSize.cy, gaugeTrackRadius, gaugeStartAngle, gaugeEndAngle);
-  const gaugeProgressPath = createArcPath(gaugeSize.cx, gaugeSize.cy, gaugeTrackRadius, gaugeStartAngle, normalizedGuessAngle);
+  const gaugeGuessPath = createArcPath(gaugeSize.cx, gaugeSize.cy, gaugeTrackRadius, gaugeStartAngle, normalizedGuessAngle);
+  const gaugeTargetPath = createArcPath(gaugeSize.cx, gaugeSize.cy, gaugeTrackRadius, gaugeStartAngle, normalizedTargetAngle);
+  const targetZoneDistance = Math.max(0, parseWaveNumber(WAVE_TARGET_ZONE_DISTANCE, 5));
+  const outerTargetZoneDistance = Math.max(targetZoneDistance, parseWaveNumber(WAVE_TARGET_OUTER_ZONE_DISTANCE, 10));
+  const farTargetZoneDistance = Math.max(outerTargetZoneDistance, parseWaveNumber(WAVE_TARGET_FAR_ZONE_DISTANCE, 15));
+  const targetZoneStart = Math.max(0, target - targetZoneDistance);
+  const targetZoneEnd = Math.min(100, target + targetZoneDistance);
+  const targetZoneStartAngle = gaugeStartAngle + (targetZoneStart / 100) * gaugeSweep;
+  const targetZoneEndAngle = gaugeStartAngle + (targetZoneEnd / 100) * gaugeSweep;
+  const gaugeTargetZonePath = createSectorPath(gaugeSize.cx, gaugeSize.cy, gaugeNeedleRadius, targetZoneStartAngle, targetZoneEndAngle);
+  const targetOuterLeftStart = Math.max(0, target - outerTargetZoneDistance);
+  const targetOuterLeftEnd = Math.max(0, target - targetZoneDistance);
+  const targetOuterRightStart = Math.min(100, target + targetZoneDistance);
+  const targetOuterRightEnd = Math.min(100, target + outerTargetZoneDistance);
+  const targetOuterLeftStartAngle = gaugeStartAngle + (targetOuterLeftStart / 100) * gaugeSweep;
+  const targetOuterLeftEndAngle = gaugeStartAngle + (targetOuterLeftEnd / 100) * gaugeSweep;
+  const targetOuterRightStartAngle = gaugeStartAngle + (targetOuterRightStart / 100) * gaugeSweep;
+  const targetOuterRightEndAngle = gaugeStartAngle + (targetOuterRightEnd / 100) * gaugeSweep;
+  const gaugeTargetOuterLeftZonePath = createSectorPath(gaugeSize.cx, gaugeSize.cy, gaugeNeedleRadius, targetOuterLeftStartAngle, targetOuterLeftEndAngle);
+  const gaugeTargetOuterRightZonePath = createSectorPath(gaugeSize.cx, gaugeSize.cy, gaugeNeedleRadius, targetOuterRightStartAngle, targetOuterRightEndAngle);
+  const targetFarLeftStart = Math.max(0, target - farTargetZoneDistance);
+  const targetFarLeftEnd = Math.max(0, target - outerTargetZoneDistance);
+  const targetFarRightStart = Math.min(100, target + outerTargetZoneDistance);
+  const targetFarRightEnd = Math.min(100, target + farTargetZoneDistance);
+  const targetFarLeftStartAngle = gaugeStartAngle + (targetFarLeftStart / 100) * gaugeSweep;
+  const targetFarLeftEndAngle = gaugeStartAngle + (targetFarLeftEnd / 100) * gaugeSweep;
+  const targetFarRightStartAngle = gaugeStartAngle + (targetFarRightStart / 100) * gaugeSweep;
+  const targetFarRightEndAngle = gaugeStartAngle + (targetFarRightEnd / 100) * gaugeSweep;
+  const gaugeTargetFarLeftZonePath = createSectorPath(gaugeSize.cx, gaugeSize.cy, gaugeNeedleRadius, targetFarLeftStartAngle, targetFarLeftEndAngle);
+  const gaugeTargetFarRightZonePath = createSectorPath(gaugeSize.cx, gaugeSize.cy, gaugeNeedleRadius, targetFarRightStartAngle, targetFarRightEndAngle);
+  const score = computeWaveScore(distance, WAVE_SCORING_CONFIG, targetZoneDistance, outerTargetZoneDistance, farTargetZoneDistance);
+  const isBlueWin = revealed && distance <= targetZoneDistance;
+  const showTargetOnGauge = !targetLocked || revealed;
+  const showGuessOnGauge = targetLocked || revealed;
+  const showTargetZoneOnGauge = showTargetOnGauge && targetZoneEnd > targetZoneStart;
+  const showTargetOuterLeftZoneOnGauge = showTargetOnGauge && targetOuterLeftEnd > targetOuterLeftStart;
+  const showTargetOuterRightZoneOnGauge = showTargetOnGauge && targetOuterRightEnd > targetOuterRightStart;
+  const showTargetFarLeftZoneOnGauge = showTargetOnGauge && targetFarLeftEnd > targetFarLeftStart;
+  const showTargetFarRightZoneOnGauge = showTargetOnGauge && targetFarRightEnd > targetFarRightStart;
+  const activeGaugeValue = !targetLocked ? target : guess;
+  const activeModeHint = !targetLocked ? t("wave.setTargetStep") : t("wave.guessStep");
   const gaugeTicks = Array.from({ length: 11 }, (_, index) => {
     const ratio = index / 10;
     const angle = gaugeStartAngle + ratio * gaugeSweep;
@@ -1256,9 +1347,13 @@ function WaveLength({ language, setLanguage, t, embedded = false }) {
   }, [gaugeDragging]);
 
   const handleNewRound = () => {
-    setTarget(randomWaveTarget());
+    setTarget(50);
     setGuess(50);
+    setTargetLocked(false);
     setRevealed(false);
+  };
+
+  const handleResetPrompt = () => {
     setPrompt(pickWavePrompt(language));
   };
 
@@ -1287,100 +1382,166 @@ function WaveLength({ language, setLanguage, t, embedded = false }) {
     return Math.round(Math.max(0, Math.min(1, ratio)) * 100);
   };
 
-  const applyPointerGuess = (event) => {
+  const applyPointerValue = (event) => {
     if (revealed) return;
-    const nextGuess = getGuessFromPointerEvent(event);
-    if (nextGuess == null) return;
-    setGuess(nextGuess);
+    const nextValue = getGuessFromPointerEvent(event);
+    if (nextValue == null) return;
+    if (!targetLocked) {
+      setTarget(nextValue);
+      return;
+    }
+    setGuess(nextValue);
   };
 
   const handleGaugePointerDown = (event) => {
     if (revealed) return;
     event.preventDefault();
     setGaugeDragging(true);
-    applyPointerGuess(event);
+    applyPointerValue(event);
   };
 
   const handleGaugePointerMove = (event) => {
     if (!gaugeDragging || revealed) return;
-    applyPointerGuess(event);
+    applyPointerValue(event);
   };
 
-  const adjustGuess = (delta) => {
+  const adjustGaugeValue = (delta) => {
     if (revealed) return;
+    if (!targetLocked) {
+      setTarget((current) => Math.max(0, Math.min(100, current + delta)));
+      return;
+    }
     setGuess((current) => Math.max(0, Math.min(100, current + delta)));
   };
 
   const toolSection = (
     <section className="section reveal wave-section" style={{ animationDelay: "0.08s" }}>
       <p className="wave-prompt-label">{t("wave.promptLabel")}</p>
-      <div className="wave-prompt">{prompt}</div>
+      <textarea
+        className="wave-prompt wave-prompt-input"
+        value={prompt}
+        onChange={(event) => setPrompt(event.target.value)}
+        rows={2}
+        aria-label={t("wave.promptLabel")}
+      />
 
       <div className="wave-guess-wrap">
+        <p className="wave-mode-hint">{activeModeHint}</p>
         <div className="wave-guess-header">
           <span className="wave-guess-label">{t("wave.guessLabel")}</span>
-          <span className="wave-guess-value">{guess}</span>
+          <div className="wave-value-stack">
+            <span className="wave-guess-value">{guess}</span>
+            <span className="wave-target-value">
+              {t("wave.targetLabel")}: {showTargetOnGauge || revealed ? target : "--"}
+            </span>
+          </div>
         </div>
         <div className="wave-gauge-shell">
-          <svg
-            ref={gaugeRef}
-            className={`wave-gauge${revealed ? " readonly" : ""}`}
-            viewBox={`0 0 ${gaugeSize.width} ${gaugeSize.height}`}
-            role="img"
-            aria-label={t("wave.guessLabel")}
-            onPointerDown={handleGaugePointerDown}
-            onPointerMove={handleGaugePointerMove}
-            onPointerUp={() => setGaugeDragging(false)}
-            onPointerCancel={() => setGaugeDragging(false)}
-          >
-            <path d={gaugeTrackPath} className="wave-gauge-track" />
-            {guess > 0 && <path d={gaugeProgressPath} className="wave-gauge-progress" />}
-            {gaugeTicks.map((tick) => (
-              <line
-                key={tick.key}
-                x1={tick.outer.x}
-                y1={tick.outer.y}
-                x2={tick.inner.x}
-                y2={tick.inner.y}
-                className={`wave-gauge-tick${tick.major ? " major" : ""}`}
-              />
-            ))}
-            <line
-              x1={gaugeSize.cx}
-              y1={gaugeSize.cy}
-              x2={gaugeSize.cx}
-              y2={gaugeSize.cy - gaugeNeedleRadius}
-              className="wave-gauge-needle"
-              transform={`rotate(${guessAngle} ${gaugeSize.cx} ${gaugeSize.cy})`}
-            />
-            <circle cx={gaugeSize.cx} cy={gaugeSize.cy} r="8" className="wave-gauge-hub" />
-          </svg>
+          {revealed && (
+            <div className="wave-gauge-score" aria-live="polite">
+              {t("wave.score", { value: score })}
+            </div>
+          )}
+          <div className="wave-gauge-frame">
+            {isBlueWin && (
+              <div className="wave-fireworks" aria-hidden="true">
+                <span className="wave-firework" />
+                <span className="wave-firework" />
+                <span className="wave-firework" />
+                <span className="wave-firework" />
+                <span className="wave-firework" />
+                <span className="wave-firework" />
+              </div>
+            )}
+            <svg
+              ref={gaugeRef}
+              className={`wave-gauge${revealed ? " readonly" : ""}`}
+              viewBox={`0 0 ${gaugeSize.width} ${gaugeSize.height}`}
+              role="img"
+              aria-label={t("wave.guessLabel")}
+              onPointerDown={handleGaugePointerDown}
+              onPointerMove={handleGaugePointerMove}
+              onPointerUp={() => setGaugeDragging(false)}
+              onPointerCancel={() => setGaugeDragging(false)}
+            >
+              <path d={gaugeTrackPath} className="wave-gauge-track" />
+              {showTargetFarLeftZoneOnGauge && <path d={gaugeTargetFarLeftZonePath} className="wave-gauge-target-zone-far" />}
+              {showTargetFarRightZoneOnGauge && <path d={gaugeTargetFarRightZonePath} className="wave-gauge-target-zone-far" />}
+              {showTargetOuterLeftZoneOnGauge && <path d={gaugeTargetOuterLeftZonePath} className="wave-gauge-target-zone-outer" />}
+              {showTargetOuterRightZoneOnGauge && <path d={gaugeTargetOuterRightZonePath} className="wave-gauge-target-zone-outer" />}
+              {showTargetZoneOnGauge && <path d={gaugeTargetZonePath} className="wave-gauge-target-zone" />}
+              {showTargetOnGauge && target > 0 && <path d={gaugeTargetPath} className="wave-gauge-progress wave-gauge-progress-target" />}
+              {showGuessOnGauge && guess > 0 && <path d={gaugeGuessPath} className="wave-gauge-progress wave-gauge-progress-guess" />}
+              {gaugeTicks.map((tick) => (
+                <line
+                  key={tick.key}
+                  x1={tick.outer.x}
+                  y1={tick.outer.y}
+                  x2={tick.inner.x}
+                  y2={tick.inner.y}
+                  className={`wave-gauge-tick${tick.major ? " major" : ""}`}
+                />
+              ))}
+              {showTargetOnGauge && (
+                <line
+                  x1={gaugeSize.cx}
+                  y1={gaugeSize.cy}
+                  x2={gaugeSize.cx}
+                  y2={gaugeSize.cy - gaugeNeedleRadius}
+                  className="wave-gauge-needle wave-gauge-needle-target"
+                  transform={`rotate(${targetAngle} ${gaugeSize.cx} ${gaugeSize.cy})`}
+                />
+              )}
+              {showGuessOnGauge && (
+                <line
+                  x1={gaugeSize.cx}
+                  y1={gaugeSize.cy}
+                  x2={gaugeSize.cx}
+                  y2={gaugeSize.cy - gaugeNeedleRadius}
+                  className="wave-gauge-needle wave-gauge-needle-guess"
+                  transform={`rotate(${guessAngle} ${gaugeSize.cx} ${gaugeSize.cy})`}
+                />
+              )}
+              <circle cx={gaugeSize.cx} cy={gaugeSize.cy} r="8" className="wave-gauge-hub" />
+            </svg>
+          </div>
         </div>
         <div className="wave-range-labels">
           <span>{t("wave.lowLabel")}</span>
           <span>{t("wave.highLabel")}</span>
         </div>
         <div className="wave-adjust-row">
-          <button className="button ghost small" type="button" onClick={() => adjustGuess(-5)} disabled={revealed || guess <= 0}>
+          <button className="button ghost small" type="button" onClick={() => adjustGaugeValue(-5)} disabled={revealed || activeGaugeValue <= 0}>
             -5
           </button>
-          <button className="button ghost small" type="button" onClick={() => adjustGuess(-1)} disabled={revealed || guess <= 0}>
+          <button className="button ghost small" type="button" onClick={() => adjustGaugeValue(-1)} disabled={revealed || activeGaugeValue <= 0}>
             -1
           </button>
-          <button className="button ghost small" type="button" onClick={() => adjustGuess(1)} disabled={revealed || guess >= 100}>
+          <button className="button ghost small" type="button" onClick={() => adjustGaugeValue(1)} disabled={revealed || activeGaugeValue >= 100}>
             +1
           </button>
-          <button className="button ghost small" type="button" onClick={() => adjustGuess(5)} disabled={revealed || guess >= 100}>
+          <button className="button ghost small" type="button" onClick={() => adjustGaugeValue(5)} disabled={revealed || activeGaugeValue >= 100}>
             +5
           </button>
         </div>
       </div>
 
       <div className="inline-actions">
+        <button className="button" type="button" onClick={() => setTargetLocked(true)} disabled={targetLocked || revealed}>
+          {t("wave.lockTarget")}
+        </button>
+        <button className="button secondary" type="button" onClick={handleResetPrompt}>
+          {t("wave.resetPrompt")}
+        </button>
         <button className="button secondary" type="button" onClick={handleNewRound}>
           {t("wave.newRound")}
         </button>
-        <button className="button" type="button" onClick={() => setRevealed((current) => !current)}>
+        <button
+          className="button"
+          type="button"
+          onClick={() => setRevealed((current) => !current)}
+          disabled={!targetLocked && !revealed}
+        >
           {revealed ? t("wave.hide") : t("wave.reveal")}
         </button>
       </div>
@@ -1511,8 +1672,17 @@ function Buzzer({ language, setLanguage, t, embedded = false }) {
             <div key={`${player}_${index}`} className={`buzzer-player${isWinner ? " winner" : ""}`}>
               <span className="buzzer-player-name">{player}</span>
               <div className="buzzer-player-actions">
-                <button className="button" type="button" onClick={() => handleBuzz(player)} disabled={Boolean(winner)}>
-                  {t("buzzer.buzzNow")}
+                <button
+                  className="buzzer-buzz-button"
+                  type="button"
+                  onClick={() => handleBuzz(player)}
+                  disabled={Boolean(winner)}
+                  aria-label={t("buzzer.buzzNow")}
+                  title={t("buzzer.buzzNow")}
+                >
+                  <span className="buzzer-buzz-icon" aria-hidden="true">
+                    ⚡
+                  </span>
                 </button>
                 <button
                   className="button ghost small"

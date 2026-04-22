@@ -635,6 +635,21 @@ body {
   font-size: 1.08rem;
 }
 
+.wave-prompt-input {
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+  box-sizing: border-box;
+  color: var(--ink);
+  line-height: 1.35;
+  font-family: inherit;
+}
+
+.wave-prompt-input:focus-visible {
+  outline: 2px solid rgba(216, 76, 34, 0.45);
+  outline-offset: 2px;
+}
+
 .wave-guess-wrap {
   border-radius: 14px;
   padding: 16px;
@@ -643,6 +658,12 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.wave-mode-hint {
+  margin: 0;
+  font-size: 0.87rem;
+  color: var(--ink-muted);
 }
 
 .wave-guess-header {
@@ -656,27 +677,181 @@ body {
   font-weight: 700;
 }
 
+.wave-value-stack {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .wave-guess-value {
   font-weight: 700;
   color: var(--accent-dark);
 }
 
+.wave-target-value {
+  font-weight: 700;
+  color: #2a9d60;
+}
+
 .wave-gauge-shell {
   padding-top: 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.wave-gauge-frame {
+  width: 100%;
+  max-width: 430px;
+  position: relative;
 }
 
 .wave-gauge {
   width: 100%;
-  max-width: 430px;
   display: block;
   margin: 0 auto;
   touch-action: none;
   cursor: crosshair;
+  position: relative;
+  z-index: 1;
 }
 
 .wave-gauge.readonly {
   cursor: not-allowed;
   opacity: 0.86;
+}
+
+.wave-gauge-score {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(2rem, 5.2vw, 3.4rem);
+  line-height: 1;
+  font-weight: 900;
+  color: var(--accent-dark);
+  letter-spacing: 0.02em;
+  text-shadow: 0 3px 10px rgba(216, 76, 34, 0.2);
+}
+
+.wave-fireworks {
+  position: absolute;
+  inset: 8px 0 0;
+  pointer-events: none;
+  z-index: 3;
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+.wave-firework {
+  position: absolute;
+  left: var(--fw-x, 50%);
+  top: var(--fw-y, 50%);
+  width: var(--fw-size, 84px);
+  height: var(--fw-size, 84px);
+  transform: translate(-50%, -50%) scale(0.22);
+  opacity: 0;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 10%, transparent 12%),
+    repeating-conic-gradient(from 0deg, var(--fw-color, #ffd84d) 0 12deg, transparent 12deg 24deg);
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.38));
+  animation: wave-firework-burst 1.1s ease-out var(--fw-delay, 0s) both;
+}
+
+.wave-firework::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.82);
+  transform: scale(0.2);
+  opacity: 0;
+  animation: wave-firework-ring 1.1s ease-out var(--fw-delay, 0s) both;
+}
+
+.wave-firework:nth-child(1) {
+  --fw-x: 12%;
+  --fw-y: 33%;
+  --fw-size: 94px;
+  --fw-color: #ffd84d;
+  --fw-delay: 0s;
+}
+
+.wave-firework:nth-child(2) {
+  --fw-x: 86%;
+  --fw-y: 35%;
+  --fw-size: 92px;
+  --fw-color: #6de0ff;
+  --fw-delay: 0.08s;
+}
+
+.wave-firework:nth-child(3) {
+  --fw-x: 27%;
+  --fw-y: 56%;
+  --fw-size: 82px;
+  --fw-color: #ff7f7f;
+  --fw-delay: 0.14s;
+}
+
+.wave-firework:nth-child(4) {
+  --fw-x: 74%;
+  --fw-y: 58%;
+  --fw-size: 80px;
+  --fw-color: #9bf27d;
+  --fw-delay: 0.2s;
+}
+
+.wave-firework:nth-child(5) {
+  --fw-x: 48%;
+  --fw-y: 30%;
+  --fw-size: 88px;
+  --fw-color: #ffb36b;
+  --fw-delay: 0.12s;
+}
+
+.wave-firework:nth-child(6) {
+  --fw-x: 49%;
+  --fw-y: 64%;
+  --fw-size: 90px;
+  --fw-color: #c2a1ff;
+  --fw-delay: 0.24s;
+}
+
+@keyframes wave-firework-burst {
+  0% {
+    transform: translate(-50%, -50%) scale(0.2);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.18);
+    opacity: 0;
+  }
+}
+
+@keyframes wave-firework-ring {
+  0% {
+    transform: scale(0.2);
+    opacity: 0.88;
+  }
+  100% {
+    transform: scale(1.45);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wave-firework,
+  .wave-firework::after {
+    animation: none;
+    opacity: 0;
+  }
 }
 
 .wave-gauge-track {
@@ -686,11 +861,36 @@ body {
   stroke-linecap: round;
 }
 
+.wave-gauge-target-zone {
+  fill: rgba(45, 140, 255, 0.28);
+  stroke: rgba(45, 140, 255, 0.62);
+  stroke-width: 1.5;
+}
+
+.wave-gauge-target-zone-outer {
+  fill: rgba(224, 70, 70, 0.24);
+  stroke: rgba(224, 70, 70, 0.58);
+  stroke-width: 1.5;
+}
+
+.wave-gauge-target-zone-far {
+  fill: rgba(242, 199, 68, 0.28);
+  stroke: rgba(201, 156, 24, 0.62);
+  stroke-width: 1.5;
+}
+
 .wave-gauge-progress {
   fill: none;
-  stroke: var(--accent);
   stroke-width: 16;
   stroke-linecap: round;
+}
+
+.wave-gauge-progress-guess {
+  stroke: var(--accent);
+}
+
+.wave-gauge-progress-target {
+  stroke: #2a9d60;
 }
 
 .wave-gauge-tick {
@@ -705,10 +905,17 @@ body {
 }
 
 .wave-gauge-needle {
-  stroke: #2f3439;
   stroke-width: 4;
   stroke-linecap: round;
   filter: drop-shadow(0 2px 4px rgba(26, 28, 30, 0.2));
+}
+
+.wave-gauge-needle-guess {
+  stroke: #2f3439;
+}
+
+.wave-gauge-needle-target {
+  stroke: #2a9d60;
 }
 
 .wave-gauge-hub {
@@ -822,6 +1029,77 @@ body {
 
 .buzzer-player-actions .button {
   align-self: auto;
+}
+
+.buzzer-buzz-button {
+  width: 66px;
+  height: 66px;
+  border: none;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fffaf8;
+  background:
+    radial-gradient(circle at 32% 24%, #ffd6d6 0 14%, #ff8f8f 18%, transparent 20%),
+    radial-gradient(circle at 50% 42%, #ff7373 0, #e63f3f 48%, #b31313 76%, #7f0b0b 100%);
+  box-shadow:
+    0 10px 18px rgba(167, 17, 17, 0.36),
+    0 0 0 1px rgba(95, 6, 6, 0.44),
+    inset 0 3px 6px rgba(255, 255, 255, 0.45),
+    inset 0 -9px 12px rgba(92, 0, 0, 0.35);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+  animation: buzzer-pulse 1.5s ease-in-out infinite;
+}
+
+.buzzer-buzz-button:hover:enabled {
+  transform: translateY(-1px) scale(1.04);
+  box-shadow:
+    0 14px 22px rgba(167, 17, 17, 0.42),
+    0 0 0 1px rgba(95, 6, 6, 0.5),
+    inset 0 3px 6px rgba(255, 255, 255, 0.48),
+    inset 0 -10px 14px rgba(92, 0, 0, 0.36);
+}
+
+.buzzer-buzz-button:active:enabled {
+  transform: translateY(1px) scale(0.98);
+  filter: brightness(0.94);
+}
+
+.buzzer-buzz-button:focus-visible {
+  outline: 3px solid rgba(216, 76, 34, 0.5);
+  outline-offset: 3px;
+}
+
+.buzzer-buzz-button:disabled {
+  cursor: not-allowed;
+  animation: none;
+  filter: grayscale(0.35) saturate(0.65);
+  opacity: 0.7;
+}
+
+.buzzer-buzz-icon {
+  font-size: 1.7rem;
+  line-height: 1;
+  transform: translateY(-1px);
+  text-shadow: 0 2px 5px rgba(58, 0, 0, 0.45);
+}
+
+@keyframes buzzer-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  42% {
+    transform: scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .buzzer-buzz-button {
+    animation: none;
+  }
 }
 
 .card-list {
